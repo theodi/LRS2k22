@@ -5,6 +5,10 @@
 const express = require('express');
 const app = express();
 const session = require('express-session');
+var api = require('./api');
+
+module.exports = app;
+
 var sitedata = {};
 sitedata.user = null;
 sitedata.page = {};
@@ -129,6 +133,19 @@ app.get('/page2', function(req, res) {
   res.render('pages/page2', {
     data: sitedata
   })
+});
+
+/* API requests */ 
+
+app.get('/api/activityData', function (req, res) {
+  if (!userProfile && req.headers.host.split(":")[0] != "localhost") {
+      sitedata.user = null;
+      sitedata.page.title = "401 Unauthorised";
+      return res.status(401).render("errors/401", {
+        data: sitedata
+      });
+  }
+  api.getActivityData(req, res); 
 });
 
 //Keep this at the END!
