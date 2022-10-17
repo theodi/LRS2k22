@@ -135,7 +135,7 @@ app.get('/page2', function(req, res) {
   })
 });
 
-/* API requests */ 
+/* API requests private methods */ 
 
 app.get('/api/activityData', function (req, res) {
   if (!userProfile && req.headers.host.split(":")[0] != "localhost") {
@@ -146,6 +146,14 @@ app.get('/api/activityData', function (req, res) {
       });
   }
   api.getActivityData(req, res); 
+});
+
+
+/*
+ * API requests, public methods 
+ */
+app.get('/api/questionSummary', function (req, res) {
+  api.getQuestionSummaryData(req, res); 
 });
 
 //Keep this at the END!

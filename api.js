@@ -2,6 +2,9 @@ const fetch = require('node-fetch');
 var json2csv = require('json2csv'); // Library to create CSV for output
 const { Headers } = fetch;
 
+resolved = false;
+promises = [];
+
 /*
  * execQuery (query)
  * 
@@ -79,7 +82,7 @@ const getStatements = async (activity, verb, since, until, related_activities) =
 function simplifyOutput(input) {
     var array = [];
     input.map((a) => {
-        array.push(a.count);
+        array.push(a.Count);
     });
     return array;
 }
@@ -203,33 +206,30 @@ function calculateSessionTimes(objects) {
  * REUSABLE
  */
 function processReturn(req,res,filter,output,csvOutput) {
-        // fix cannot set headers after they are sent to the client error
     
-        // Work out what the client asked for, the ".ext" specified always overrides content negotiation
-        ext = req.params["ext"] || filter.format;
+    // Work out what the client asked for, the ".ext" specified always overrides content negotiation
+    ext = req.params["ext"] || filter.format;
 
-        // If there is no extension specified then manage it via content negoition, yay!
-        if (!ext) {
-            ext = req.accepts(['json', 'csv', 'html']);
-        }
-
-        // Return the data to the user in a format they asked for
-        // CSV, JSON or by default HTML (web page)
-        res.set('Access-Control-Allow-Origin', '*');
-        if (ext == "csv") {
-            res.set('Content-Type', 'text/csv');
-            res.send(json2csv({ data: csvOutput }));
-        } else if (ext == "json") {
-            res.set('Content-Type', 'application/json');
-            res.send(JSON.stringify(output, null, 4));
-        } else if (ext == "chartjs") {
-            res.set('Content-Type', 'application/json');
-            res.send(JSON.stringify(simplifyOutput(csvOutput), null, 4));
-        } else {
-            ejs.renderFile(__dirname + '/page.html', { path: req.path, query: req.query }, function (err, csvOutput) {
-                res.send(csvOutput);
-            });
-        }
+    // If there is no extension specified then manage it via content negoition, yay!
+    if (!ext) {
+        ext = req.accepts(['json', 'csv', 'html']);
+    }
+    // Return the data to the user in a format they asked for
+    // CSV, JSON or by default HTML (web page)
+    res.set('Access-Control-Allow-Origin', '*');
+    if (ext == "csv") {
+        res.set('Content-Type', 'text/csv');
+        res.send(json2csv({ data: csvOutput }));
+    } else if (ext == "json") {
+        res.set('Content-Type', 'application/json');
+        res.send(JSON.stringify(output, null, 4));
+    } else if (ext == "chartjs") {
+        res.set('Content-Type', 'text/plain');
+        res.send(JSON.stringify(simplifyOutput(csvOutput), null, 4));
+    } else {
+        res.set('Content-Type', 'application/json');
+        res.send(JSON.stringify(output, null, 4));
+    }
 }
 
 /*
@@ -346,109 +346,142 @@ function processActivityDataObjects(objects,activity,related_activities) {
         return output;
 }
 
-/*
- * processQuestion
+/* 
+ * combineQuestionSummaryResults 
  * 
- * TODO: UPDATE TO BE API FUNCTION
+ * When working with multiple pages of results, we only want to return one set of objects. 
+ * This function adds up all the counts for the question summary results including completion and success measures
+ * 
+ * NOT REUSABLE
  */
-function processQuestion(req,res,activity,verb,since,until,filter) {
-    getStatements(activity, verb, since, until, false).then((objects) => {
-        if (!objects) {
-            res.statusMessage = "Internal server error";
-            res.status(500).end();
-            res.send();
-            return;
+const combineQuestionSummaryResults = (arr) => {
+    var combined = {};
+    var output = {};
+    output.responses = [];
+    output.success = 0;
+    output.completion = 0;
+    for (var i=0; i<arr.length;i++) {
+        responses = arr[i].responses;
+        for (j=0;j<responses.length;j++) {
+            if (!combined[responses[j].id]) {
+                combined[responses[j].id] = 0;
+            } 
+            combined[responses[j].id] += responses[j].count;
         }
-        var statements = objects.statements;
-        if (statements.length < 1 || !statements) {
-            res.statusMessage = "No data found for activity " + activity + " with verb " + verb;
-            res.status(404).end();
-            res.send();
-            return;
-        }
+        output.success += arr[i].success;
+        output.completion += arr[i].completion;
+    }
+    for (const [key, value] of Object.entries(combined)) {
+        var local = {};
+        local.id = key;
+        local.count = value;
+        output.responses.push(local);
+    }
 
-        var output = {};
-
-        var csvOutput = [];
-
-        output.object = statements[0].object;
-
-        output.responses = [];
-        output.success = 0;
-        output.completion = 0;
-
-        var responseArray = [];
-
-        try {
-            statements.map((a) => {
-                result = a.result;
-                responses = result.response.split('[,]');
-                responses.map((response) => {
-                    if (responseArray[response]) {
-                        responseArray[response] += 1;
-                    } else {
-                        responseArray[response] = 1;
-                    }
-                });
-                if (result.success) { output.success += 1; }
-                if (result.completion) { output.completion += 1; }
-            });
-        } catch (error) {
-            output.success = "unknown";
-            output.completion = "unknown";
-        }
-
-        try {
-            statements[0].object.definition.choices.map((a) => {
-                let jsonres = {};
-                jsonres.id = a.id;
-                jsonres.count = responseArray[a.id] || 0;
-                output.responses.push(jsonres);
-
-                let csvres = {};
-                try {
-                    csvres.answer = a.description.en;
-                } catch (error) {
-                    csvres.answer = a.id;
-                }
-                csvres.count = responseArray[a.id] || 0;
-                csvOutput.push(csvres);
-            });
-        } catch (error) {
-            // Do nothing
-        }
-        
-        // fix cannot set headers after they are sent to the client error
-    
-        // Work out what the client asked for, the ".ext" specified always overrides content negotiation
-        ext = req.params["ext"] || filter.format;
-
-        // If there is no extension specified then manage it via content negoition, yay!
-        if (!ext) {
-            ext = req.accepts(['json', 'csv', 'html']);
-        }
-        // Return the data to the user in a format they asked for
-        // CSV, JSON or by default HTML (web page)
-        res.set('Access-Control-Allow-Origin', '*');
-        if (ext == "csv") {
-            res.set('Content-Type', 'text/csv');
-            res.send(json2csv({ data: csvOutput }));
-        } else if (ext == "json") {
-            res.set('Content-Type', 'application/json');
-            res.send(JSON.stringify(output, null, 4));
-        } else if (ext == "chartjs") {
-            res.set('Content-Type', 'application/json');
-            res.send(JSON.stringify(simplifyOutput(csvOutput), null, 4));
-        } else {
-            ejs.renderFile(__dirname + '/page.html', { path: req.path, query: req.query }, function (err, csvOutput) {
-                res.send(csvOutput);
-            });
-        }
-    });
+    return output;
 }
 
-var promises = [];
-var resolved = false;
+/*
+ * makeQuestionDataCSVOutput (output)
+ *
+ * Takes the output from getQuestionSummaryData and creates an object that can be output as a CSV file
+ * Specific to the getQuestionSummaryData API call
+ * CSV has two columns:
+ *   Answer: English text of the answer
+ *   Count: Number of people who picked this response
+ *
+ * NOT REUSABLE as each CSV has a different structure
+ */
+function makeQuestionDataCSVOutput(output) {
+    var choices = output.object.definition.choices;
+    var rotated_choices = {};
+
+    var responses = output.responses;
+
+    var output = [];
+    
+    for (i=0;i<choices.length;i++) {
+        rotated_choices[choices[i].id] = choices[i].description.en;
+    }
+
+    for (i=0;i<responses.length;i++) {
+        id = responses[i].id;
+        var local = {};
+        local.Answer = rotated_choices[id];
+        local.Count = responses[i].count;
+        output.push(local);
+    }
+    return output;
+}
+
+/*
+ * processQuestionDataObjects
+ * 
+ * Specific function to build the data required for the getQuestionSummaryData API call
+ * This function is required to call itself to process additional pages
+ *
+ * NOT REUSABLE
+ */
+function processQuestionDataObjects(objects) {
+    var statements = objects.statements;
+
+    console.log("Processing objects");
+    if (!objects) {
+        res.statusMessage = "Internal server error";
+        res.status(500).end();
+        res.send();
+        return;
+    }
+
+    if (objects.more) {
+        console.log("Adding promise to the array");
+        promises.push(new Promise((resolve,reject) => {
+            execQuery(objects.more).then((objects) => {
+                resolve(processQuestionDataObjects(objects));
+            });
+        }));
+    } else {
+        resolved = true;
+    }
+    
+    var output = {};
+
+    output.object = statements[0].object;
+    output.responses = [];
+    output.success = 0;
+    output.completion = 0;
+
+    var responseArray = [];
+    try {
+        statements.map((a) => {
+            result = a.result;
+            responses = result.response.split('[,]');
+            responses.map((response) => {
+                if (responseArray[response]) {
+                    responseArray[response] += 1;
+                } else {
+                    responseArray[response] = 1;
+                }
+            });
+            if (result.success) { output.success += 1; }
+            if (result.completion) { output.completion += 1; }
+        });
+    } catch (error) {
+        output.success = "unknown";
+        output.completion = "unknown";
+    }
+    try {
+        statements[0].object.definition.choices.map((a) => {
+            let jsonres = {};
+            jsonres.id = a.id;
+            jsonres.count = responseArray[a.id] || 0;
+            output.responses.push(jsonres);
+        });
+    } catch (error) {
+        // Do nothing
+    }
+    return output;
+}
 
 /* 
  * getActivityData
@@ -492,6 +525,61 @@ exports.getActivityData = function(req, res) {
                     output.objects = getNestedObjects(values);
                     console.log("done processing");
                     processReturn(req,res,filter,output,makeActivityDataCSVOutput(output)); 
+                });
+            }
+        },100);
+    });
+}
+
+/* 
+ * getQuestionSummaryData
+ * 
+ * Get anonymous aggregated data about interactions with a single question. 
+ * You call this API with an activity ID which represents a question which can be marked with the answered verb in XAPI.
+ * In simple terms the returned data will be in the form of the question object and how many people answered with each option. 
+ * In the JSON format you also get how many completions and how many were successful as well as a defintion of the object itself.
+ * 
+ * SPECIFIC API function.
+ * Example API call = http://localhost:3080/api/questionSummary?activity=activity=https://learning.theodi.org/xapi/activities/mit-moral-machine-test%23/id/630f81656b4097008b2afd6f_branching_0
+ */
+exports.getQuestionSummaryData = function(req, res) {
+    resolved = false;
+    promises = [];
+    var filter = req.query;
+    if (!filter.activity) {
+        res.statusMessage = "You need to define an activity e.g. http://url.com/?activity=http://....";
+        res.status(400).end();
+        res.send();
+        return;
+    }
+
+    var activity = filter.activity;
+    var verb = "http://adlnet.gov/expapi/verbs/answered";
+    var since = filter.since || null;
+    var until = filter.until || null;
+    var related_activities = filter.related_activities || false;
+    var format = filter.format;
+    
+    getStatements(activity, verb, since, until, false).then((objects) => {
+        if (!objects) {
+            res.statusMessage = "Internal server error";
+            res.status(500).end();
+            res.send();
+            return;
+        }
+        promises.push(new Promise((resolve,reject) => {
+            resolve(processQuestionDataObjects(objects,activity,related_activities));
+        }));
+        var resolve = setInterval(() => {
+            if (resolved == true) {
+                clearInterval(resolve);
+                Promise.all(promises).then((values) =>{
+                    var output = {};
+                    console.log("All promises returned");
+                    output = combineQuestionSummaryResults(values);
+                    output.object = values[0].object;
+                    console.log("done processing");
+                    processReturn(req,res,filter,output,makeQuestionDataCSVOutput(output));
                 });
             }
         },100);
