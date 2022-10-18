@@ -1,0 +1,193 @@
+<%- include('../partials/header', { data: data }) %>
+<script src="//cdnjs.cloudflare.com/ajax/libs/d3/5.12.0/d3.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+
+<div class="container box" style="min-width: 1024px;">
+    <div class="jumbotron text-center text-primary" style="width: 98%;">
+        <h1 id="question-title">Question Summary</h1>
+        <p id="question-description"></p>
+    </div>
+
+    <subsection id="theme" class="question">
+        <div class="questionText" style="width: 98%;">
+            <h3>Question answers</h3>
+        </div>
+        <div id="chart_block" style="font-size: 0.8em;">
+            <ol id="choices" style="display: table; text-align: left;">
+            </ol>
+        </div>
+    </subsection>
+    <subsection id="course_completion" class="question">
+        <div class="questionText">
+            <h3>Question passes/fails</h3>
+        </div>
+        <div class="correct_block">
+            <div class="label">Total records</div>
+            <div id="total_records" class="number-chart dc-chart">
+            </div>
+        </div>
+        <div id="chart_block" style="width: 94%; height: 130px; padding: 1em; margin-left: auto; margin-right: auto;">
+            <div id="chart">
+                <canvas id="complete-line" width="400" height="100"></canvas>
+            </div>
+        </div>
+    </subsection>
+    <subsection id="assessment_completion" class="question" style="display: block; margin-left: auto; margin-right: auto; width: 95%; height: 100%;">
+        <div class="questionText">
+            <h3>Answers given</h3>
+        </div>
+        <div id="chart_block" style="width: inherit; height: 510px; padding: 1em; margin-left: auto; margin-right: auto; margin-bottom: 1em;">
+            <div id="chart">
+                <canvas id="answers" width="800" height="360"></canvas>
+            </div>
+        </div>
+    </subsection>
+</div>
+
+
+
+<script>
+function splitter(str, l){
+    var strs = [];
+    while(str.length > l){
+        var pos = str.substring(0, l).lastIndexOf(' ');
+        pos = pos <= 0 ? l : pos;
+        strs.push(str.substring(0, pos));
+        var i = str.indexOf(' ', pos)+1;
+        if(i < pos || i > pos+l)
+            i = pos;
+        str = str.substring(i);
+    }
+    strs.push(str);
+    return strs;
+}
+
+try {
+  d3.json('//localhost:3080/api/questionSummary?activity=<%= data.activity %>').then(data => {
+
+    object = data.object.definition;
+    responses = data.responses;
+    completion = data.completion;
+    success = data.success;
+    failed = (completion - success);
+
+    var choices_rotated = {};
+
+    var correctPattern = object.correctResponsesPattern[0].split('[,]');
+
+    document.getElementById('question-title').innerHTML = object.name.en;
+    document.getElementById('question-description').innerHTML = object.description.en;
+
+    if (!object.choices) {
+        console.log("No choices");
+        window.location.href = '/500';
+    }
+
+    for(i=0;i<object.choices.length;i++) {
+        var element = document.createElement('li');
+        element.id = object.choices[i].id;
+        for(j=0;j<correctPattern.length;j++) {
+            if (correctPattern[j] == object.choices[i].id) {
+                element.classList.add("correct-item");
+            }
+        }
+        element.innerHTML = object.choices[i].description.en;
+        choices_rotated[object.choices[i].id] = object.choices[i].description.en;
+        document.getElementById("choices").append(element);
+    }
+
+    document.getElementById("total_records").innerHTML = completion;
+
+    const completectx = document.getElementById('complete-line');
+
+    const successChart = new Chart(completectx, {
+        type: 'bar',
+        data: {
+            labels: [ "Passed" , "Failed" ],
+            datasets: [{
+                data: [ success, failed ],
+                backgroundColor: [
+                    'rgba(75, 192, 192, 0.2)',
+                    'rgba(255, 99, 132, 0.2)'
+                ],
+                borderColor: [
+                    'rgb(75, 192, 192)',
+                    'rgb(255, 99, 132)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            // Elements options apply to all of the options unless overridden in a dataset
+            // In this case, we are setting the border of each horizontal bar to be 2px wide
+            elements: {
+              bar: {
+                borderWidth: 2,
+              }
+            },
+            responsive: true,
+            plugins: {
+              legend: {
+                display: false,
+                position: 'right',
+              },
+              title: {
+                display: false
+              }
+            }
+        }
+    });
+
+    var chartdata = [];
+    var labels = [];
+    for(i=0;i<responses.length;i++) {
+        var response = responses[i];
+        var id = parseInt(response.id);
+        var count = response.count;
+        labels.push(splitter(choices_rotated[id],30));
+        chartdata.push(count);
+    }
+
+
+    const answersctx = document.getElementById('answers');
+
+    const answersChart = new Chart(answersctx, {
+    type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+            data: chartdata,
+            backgroundColor: 'rgb(49, 130, 189)',
+            borderColor: 'rgb(49, 130, 189)',
+            borderWidth: 1
+        }]
+      },
+      options: {
+        scales: {
+          y: {
+            beginAtZero: true
+          }
+        },
+        responsive: true,
+        plugins: {
+          legend: {
+            display: false,
+            position: 'right',
+          },
+          title: {
+            display: false
+          }
+        }
+      }
+    });
+
+
+  });
+} catch (exception) {
+    console.log("exception");
+    window.location.href = "/500";
+}
+</script>
+
+<%- include('../partials/footer') %>

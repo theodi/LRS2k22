@@ -42,10 +42,7 @@ const execQuery = async (query) => {
         }
         // catch error and return 404 to user 
         catch (error) {
-            res.statusMessage = "Internal server error";
-            res.status(500).end();
-            res.send();
-            return;
+            return {};
         }
     };
     return await getJson(query);
@@ -270,10 +267,7 @@ function processActivityDataObjects(objects,activity,related_activities) {
         var output = {};
         console.log("Processing objects");
         if (!objects) {
-            res.statusMessage = "Internal server error";
-            res.status(500).end();
-            res.send();
-            return;
+            return {};
         }
         if (objects.more) {
             console.log("Adding promise to the array");
@@ -288,10 +282,7 @@ function processActivityDataObjects(objects,activity,related_activities) {
         
         var statements = objects.statements;
         if (statements.length < 1 || !statements) {
-            res.statusMessage = "No data found for activity " + activity + " with verb " + verb;
-            res.status(404).end();
-            res.send();
-            return;
+            return {};
         }
 
         if (!related_activities) {
@@ -394,6 +385,10 @@ const combineQuestionSummaryResults = (arr) => {
  */
 function makeQuestionDataCSVOutput(output) {
     var choices = output.object.definition.choices;
+    if (!choices) {
+        //FIXME A MATCHING COMPONENT
+        return [];
+    }
     var rotated_choices = {};
 
     var responses = output.responses;
@@ -426,11 +421,8 @@ function processQuestionDataObjects(objects) {
     var statements = objects.statements;
 
     console.log("Processing objects");
-    if (!objects) {
-        res.statusMessage = "Internal server error";
-        res.status(500).end();
-        res.send();
-        return;
+    if (!objects || !statements[0])  {
+        return {};
     }
 
     if (objects.more) {
