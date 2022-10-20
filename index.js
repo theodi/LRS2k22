@@ -1,11 +1,16 @@
+//Loads the config fomr config.env to process.env (turn off prior to deployment)
+require("dotenv").config({ path: "./config.env" });
 // index.js
 
 /*  EXPRESS */
 
 const express = require('express');
+const cors = require("cors");
+const dbo = require("./db/conn");
 const app = express();
 const session = require('express-session');
 var api = require('./api');
+var userHandler = require('./userHandler');
 
 module.exports = app;
 
@@ -22,6 +27,10 @@ app.use(session({
 }));
 
 app.use(express.static(__dirname + '/public'));
+
+app.use(cors());
+
+app.use(express.json());
 
 app.get('/', function(req, res) {
   if (userProfile) {
@@ -75,9 +84,29 @@ passport.use(new GoogleStrategy({
     clientSecret: GOOGLE_CLIENT_SECRET,
     callbackURL: "http://localhost:3080/auth/google/callback"
   },
-  function(accessToken, refreshToken, profile, done) {
+  function(accessToken, refreshToken, profile, done, req, res) {
+    /* No idea what I'm doing here */
       userProfile=profile;
-      return done(null, userProfile);
+      email = profile.emails[0].value;
+      var dbConnect = dbo.getDb();
+      dbConnect
+        .collection("Users")
+        .find({'emails.0.value': email})
+        .toArray(function(err,items) {
+          if (items.length < 1) {
+            userHandler.insertUser(dbo,profile);
+            return done(null, userProfile);
+          } else if (items[0].suspended) {
+            sitedata.user = null;
+            userProfile = null;
+            user = null;
+            return done(null, null);
+          } else {
+            userHandler.updateLastLoginTime(dbo,email);
+            userProfile = items[0];
+            return done(null, userProfile);
+          }
+        });
   }
 ));
  
@@ -181,5 +210,16 @@ app.get('*', function(req, res){
 
 /* Run server */
 
-const port = process.env.PORT || 3080;
-app.listen(port , () => console.log('App listening on port ' + port));
+// perform a database connection when the server starts
+dbo.connectToServer(function (err) {
+  if (err) {
+    console.error(err);
+    process.exit();
+  }
+
+  const port = process.env.PORT || 3080;
+  // start the Express server
+  app.listen(port, () => {
+    console.log(`Server is running on port: ${port}`);
+  });
+});
