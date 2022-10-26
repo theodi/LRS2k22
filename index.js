@@ -10,7 +10,9 @@ const dbo = require("./db/conn");
 const app = express();
 const session = require('express-session');
 var api = require('./api');
+var adaptapi = require('./adaptHandler');
 var userHandler = require('./userHandler');
+const adaptdb = require("./db/adapt-aat");
 
 module.exports = app;
 
@@ -148,14 +150,16 @@ app.get('/questionSummary', function(req, res) {
 
 /* Require user to be logged in */
 
+function unauthorised(res) {
+  sitedata.user = null;
+  sitedata.page.title = "401 Unauthorised";
+  return res.status(401).render("errors/401", {
+    data: sitedata
+  });
+}
+
 app.get('/profile', function(req, res) {
-  if (!userProfile) {
-    sitedata.user = null;
-    sitedata.page.title = "401 Unauthorised";
-    return res.status(401).render("errors/401", {
-      data: sitedata
-    });
-  }
+  if (!userProfile) { unauthorised(res); return; }
   sitedata.user = userProfile;
   sitedata.page.title = "Profile page";
   res.render('pages/profile', {
@@ -163,34 +167,68 @@ app.get('/profile', function(req, res) {
   })
 });
 
-app.get('/page2', function(req, res) {
-  if (!userProfile) {
-    sitedata.user = null;
-    sitedata.page.title = "401 Unauthorised";
-    return res.status(401).render("errors/401", {
-      data: sitedata
-    });
-  }
+app.get('/courses', function(req, res) {
+  if (!userProfile) { unauthorised(res); return; }
+
   sitedata.user = userProfile;
-  sitedata.page.title = "Page 2";
-  res.render('pages/page2', {
-    data: sitedata
-  })
+  sitedata.page.title = "Courses";
+  var dbConnectAAT = adaptdb.getDb();
+  dbConnectAAT
+    .collection("courses")
+    .find({})
+      .toArray(function(err,items) {
+        res.render('pages/courses', {
+          data: sitedata,
+          courses: items
+        })
+      });
 });
 
 /* API requests private methods */ 
 
 app.get('/api/activityData', function (req, res) {
-  if (!userProfile && req.headers.host.split(":")[0] != "localhost") {
-      sitedata.user = null;
-      sitedata.page.title = "401 Unauthorised";
-      return res.status(401).render("errors/401", {
-        data: sitedata
-      });
-  }
+  if (!userProfile) { unauthorised(res); return; }
   api.getActivityData(req, res); 
 });
 
+/* The complete adapt API */
+
+/**
+ * api/courses
+ * List all courses
+ */ 
+app.get('/api/courses', function(req,res) {
+  if (!userProfile && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
+  adaptapi.getObjectsFromCollection(req, res, adaptdb, "courses");
+});
+
+/**
+ * api/collection
+ * Get all items in a collection for a specific parentId
+ * e.g. api/contentobjects/?parentId=xxxxxx
+ * e.g. api/blocks/?parentId=xxxxxx
+ */
+app.get('/api/:collection/', function(req,res) {
+  if (!userProfile && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
+  if (req.query.parentId) {
+    adaptapi.findObjectsWithParentId(req, res, adaptdb, req.params.collection, req.query.parentId);
+  } else {
+    return res.status(400).render("errors/400", {
+      data: sitedata
+    });
+  }
+});
+
+/**
+ * api/collection/:id
+ * Get data for a single item e.g. article, course, block, component
+ * e.g. api/contentobject/xxxxxx
+ * e.g. api/block/xxxxxx
+ */
+app.get('/api/:collection/:id', function(req,res) {
+  if (!userProfile && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
+  adaptapi.getObjectById(req, res, adaptdb, req.params.collection, req.params.id);
+});
 
 /*
  * API requests, public methods 
@@ -208,6 +246,11 @@ app.get('*', function(req, res){
   });
 });
 
+adaptdb.connectToServer(function (err) {
+  if(err) {
+    console.log(err);
+  }
+});
 /* Run server */
 
 // perform a database connection when the server starts
