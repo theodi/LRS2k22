@@ -1,10 +1,85 @@
 <%- include('../partials/header', { data: data }) %>
+<link rel="stylesheet" type="text/css" href="//cdn.datatables.net/1.12.1/css/jquery.dataTables.css">
+<link rel="stylesheet" type="text/css" href="//cdn.datatables.net/responsive/2.3.0/css/responsive.dataTables.min.css">
+<script type="text/javascript" charset="utf8" src="//cdn.datatables.net/1.12.1/js/jquery.dataTables.min.js"></script>
+<script type="text/javascript" charset="utf8" src="//cdn.datatables.net/responsive/2.3.0/js/dataTables.responsive.min.js"></script>
+<script type="text/javascript" charset="utf8" src="//cdn.datatables.net/buttons/2.2.3/js/dataTables.buttons.min.js"></script>
+<script type="text/javascript" charset="utf8" src="//cdn.datatables.net/buttons/2.2.3/js/buttons.colVis.min.js"></script>
+
 <div class="container box">
     <div class="jumbotron text-center text-primary">
         <h1><span class="fa fa-lock"></span>Courses list</h1>
+        <table id="courses_table" class="display responsive wrap" cellspacing="0" width="100%">
+        <thead>
+            <tr>
+                <th>Course title</th>
+                <th>Page title</th>
+                <th># articles</th>
+                <th># blocks</th>
+                <th># assessments</th>
+                <th># questions</th>
+                <th># words</th>
+                <th class="none">Description</th>
+            </tr>
+    </thead>
+    <tbody id="courses_table_body">
+        
+    </tbody>
+</table>
     </div>
 </div>
 <script>
-   
+    function removeHTML(str){ 
+        var tmp = document.createElement("DIV");
+        tmp.innerHTML = str;
+        return tmp.textContent || tmp.innerText || "";
+    }
+   function addToRow(row,value) {
+    var td = document.createElement('td');
+    td.innerHTML = value;
+    row.append(td);
+   }
+   function addToRowLink(row,link,value) {
+    var td = document.createElement('td');
+    var a = document.createElement('a');
+    a.setAttribute('href', link);
+    a.innerHTML = value;
+    td.append(a)
+    row.append(td);
+   }
+   function addToRowHidden(row,value) {
+    var td = document.createElement('td');
+    td.className = "none";
+    td.innerHTML = value;
+    row.append(td);
+   }
+
+   $(document).ready( function () {
+    $.get('/api/courseDetail', function(data) {
+        var courses = data.courses;
+        for (const [key, value] of Object.entries(courses)) {
+            var courseTitle = value.title;
+            var contentObjects = value.contentobjects;
+            for (const [cokey, covalue] of Object.entries(contentObjects)) {
+                var row = document.createElement('tr');
+                addToRow(row,courseTitle);
+                addToRowLink(row,'/course/'+cokey,covalue.title);
+                addToRow(row,covalue.articleCount);
+                addToRow(row,covalue.blockCount);
+                addToRow(row,covalue.assessmentCount);
+                addToRow(row,covalue.questionCount);
+                addToRow(row,covalue.wordCount);
+                addToRowHidden(row,removeHTML(covalue.description));
+                if (covalue.title) {
+                    document.getElementById('courses_table_body').append(row);
+                }
+            }
+        }
+        $('#courses_table').DataTable({
+            responsive: true,
+            pageLength: 25
+        });
+    });
+   });
 </script>
 <%- include('../partials/footer') %>

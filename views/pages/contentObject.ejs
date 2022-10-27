@@ -1,0 +1,77 @@
+<%- include('../partials/header', { data: data }) %>
+<link rel="stylesheet" type="text/css" href="//cdn.datatables.net/1.12.1/css/jquery.dataTables.css">
+<link rel="stylesheet" type="text/css" href="//cdn.datatables.net/responsive/2.3.0/css/responsive.dataTables.min.css">
+<script type="text/javascript" charset="utf8" src="//cdn.datatables.net/1.12.1/js/jquery.dataTables.min.js"></script>
+<script type="text/javascript" charset="utf8" src="//cdn.datatables.net/responsive/2.3.0/js/dataTables.responsive.min.js"></script>
+<script type="text/javascript" charset="utf8" src="//cdn.datatables.net/buttons/2.2.3/js/dataTables.buttons.min.js"></script>
+<script type="text/javascript" charset="utf8" src="//cdn.datatables.net/buttons/2.2.3/js/buttons.colVis.min.js"></script>
+
+<div class="container box">
+    <div class="jumbotron text-center text-primary">
+        <h1 id="main-title"><span class="fa fa-lock"></span>Loading...</h1>
+        <subtitle id="description">
+        </subtitle>
+        <table id="factbox">
+
+        </table>
+        <h2>Section titles</h2>
+        <ol id="section_titles">
+        </ol>
+    </div>
+</div>
+<script>
+    function removeHTML(str){ 
+        var tmp = document.createElement("DIV");
+        tmp.innerHTML = str;
+        return tmp.textContent || tmp.innerText || "";
+    }
+   function addRowToTable(id,key,value) {
+    var tr = document.createElement('tr');
+    var td1 = document.createElement('td');
+    var td2 = document.createElement('td');
+    td1.innerHTML = key;
+    td2.innerHTML = value;
+    tr.append(td1);
+    tr.append(td2);
+    document.getElementById(id).append(tr);
+   }
+   function addTitleToList(id,value) {
+    var li = document.createElement('li');
+    li.innerHTML = value;
+    document.getElementById(id).append(li);
+   }
+   $(document).ready( function () {
+        $.get('/api/contentObject/?id=<%= id %>', function(data) {
+            document.getElementById("main-title").innerHTML = data.title;
+            addRowToTable("factbox","ID",data.id);
+            addRowToTable("factbox","# articles",data.articleCount);
+            addRowToTable("factbox","# blocks",data.blockCount);
+            addRowToTable("factbox","# asessments",data.assessmentCount);
+            addRowToTable("factbox","# questions",data.questionCount);
+            addRowToTable("factbox","# words",data.wordCount);
+            document.getElementById("description").innerHTML = data.description;
+            for (const [key, value] of Object.entries(data.articles)) {
+                if (typeof value == "object") {
+                    if (value.title.trim() != "") {
+                        addTitleToList("section_titles",value.title.trim());
+                    }
+                    for (const [bkey, bvalue] of Object.entries(data.articles[key].blocks)) {
+                        if (typeof bvalue == "object") {
+                            if (bvalue.title.trim() != "") {
+                                addTitleToList("section_titles",bvalue.title.trim());
+                            }
+                            for (const [ckey, cvalue] of Object.entries(data.articles[key].blocks[bkey].components)) {
+                                if (typeof cvalue == "object") {
+                                    if (cvalue.title.trim() != "") {
+                                        addTitleToList("section_titles",cvalue.title.trim());
+                                    }
+                                }
+                            }
+                        }
+                    }   
+                }
+            }
+        });
+    });
+</script>
+<%- include('../partials/footer') %>

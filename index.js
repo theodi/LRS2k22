@@ -184,6 +184,16 @@ app.get('/courses', function(req, res) {
       });
 });
 
+app.get('/course/:id', function(req, res) {
+  if (!userProfile) { unauthorised(res); return; }
+  sitedata.user = userProfile;
+  sitedata.page.title = "Course" + req.params.id;
+  res.render('pages/contentObject', {
+    data: sitedata,
+    id: req.params.id
+  });
+});
+
 /* API requests private methods */ 
 
 app.get('/api/activityData', function (req, res) {
@@ -200,6 +210,23 @@ app.get('/api/activityData', function (req, res) {
 app.get('/api/courses', function(req,res) {
   if (!userProfile && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
   adaptapi.getObjectsFromCollection(req, res, adaptdb, "courses");
+});
+
+app.get('/api/courseDetail', function(req,res) {
+  if (!userProfile && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
+  adaptapi.getCourses(req, res, adaptdb);
+});
+
+app.get('/api/contentObject/', function(req,res) {
+  if (!userProfile && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
+  adaptapi.getContentObject(req, res, adaptdb);
+});
+
+/*
+ * API requests, public methods 
+ */
+app.get('/api/questionSummary', function (req, res) {
+  api.getQuestionSummaryData(req, res); 
 });
 
 /**
@@ -228,13 +255,6 @@ app.get('/api/:collection/', function(req,res) {
 app.get('/api/:collection/:id', function(req,res) {
   if (!userProfile && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
   adaptapi.getObjectById(req, res, adaptdb, req.params.collection, req.params.id);
-});
-
-/*
- * API requests, public methods 
- */
-app.get('/api/questionSummary', function (req, res) {
-  api.getQuestionSummaryData(req, res); 
 });
 
 //Keep this at the END!
