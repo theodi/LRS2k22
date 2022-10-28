@@ -214,12 +214,12 @@ app.get('/api/courses', function(req,res) {
 
 app.get('/api/courseDetail', function(req,res) {
   if (!userProfile && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
-  adaptapi.getCourses(req, res, adaptdb);
+  adaptapi.getCourses(req, res, dbo);
 });
 
 app.get('/api/contentObject/', function(req,res) {
   if (!userProfile && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
-  adaptapi.getContentObject(req, res, adaptdb);
+  adaptapi.getContentObject(req, res, dbo);
 });
 
 /*
@@ -271,6 +271,15 @@ adaptdb.connectToServer(function (err) {
     console.log(err);
   }
 });
+
+setTimeout(() => {
+  adaptapi.updateCourseCache(adaptdb,dbo);
+},2000);
+
+setInterval(() => {
+  adaptapi.updateCourseCache(adaptdb,dbo);
+},1800000);
+
 /* Run server */
 
 // perform a database connection when the server starts

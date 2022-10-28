@@ -75,11 +75,13 @@ function processData(dbo,data,parent_id,collection,path) {
 		local[id] = {};
 		local[id].wordCount = 0;
 		local[id].title = data[i].title;
+		local[id].id = id;
 		local[id].displayTitle = data[i].displayTitle;
 		local[id].description = data[i].body;
 		local[id].wordCount += removeHTML(data[i].displayTitle).split(" ").length + removeHTML(data[i].body).split(" ").length;
 		
 		if (collection == "components") {
+			local[id].type = data[i]._component;
 			try {
 				if (data[i].properties._items) {
 					items = data[i].properties._items;
@@ -213,7 +215,23 @@ function getChildren(dbo,parent_id,collection,path) {
         });
 }
 
-exports.getCourses = function(req, res, dbo) {
+function updateCache(dbo) {
+	var resolve = setInterval(() => {
+		Promise.all(promises).then((values) => {
+			clearInterval(resolve);
+			courses = output["courses"];
+			for (const [key, value] of Object.entries(courses)) {
+				var dbConnect = dbo.getDb();
+				dbConnect
+      				.collection("AdaptCourseCache")
+      				.updateOne({_id:new ObjectId(key)},{ $set: value },{upsert: true});
+			}
+		})
+	},10000);
+}
+
+exports.updateCourseCache = function(dbo,localdb) {
+	console.log("Updaing cache");
 	var collection = "courses";
 	var dbConnect = dbo.getDb();
 	dbConnect
@@ -229,28 +247,48 @@ exports.getCourses = function(req, res, dbo) {
 				path = id;
 				getChildren(dbo,id,"contentobjects",path);
 			}
-			setPromiseInterval(req, res);
+			updateCache(localdb);
+		});
+}
+
+
+exports.getCourses = function(req, res, dbo) {
+	var collection = "AdaptCourseCache";
+	var dbConnect = dbo.getDb();
+	dbConnect
+		.collection(collection)
+        .find({})
+        .toArray(function(err,data) {
+        	if (req.query.format == "csv") {
+				res.set('Content-Type', 'text/csv');
+				res.send(json2csv({data: makeCSVOutput(output) }));
+			} else {
+				res.set('Content-Type', 'application/json');
+	        	res.send(JSON.stringify(output, null, 4));
+	        }
 		});
 }
 
 exports.getContentObject = function(req, res, dbo) {
-	var collection = "contentobjects";
+	var collection = "AdaptCourseCache";
 	var id = req.query.id;
 	var dbConnect = dbo.getDb();
+	var firstPart = "contentobjects." + id + ".id";
+	var query = {};
+	query[firstPart] = ObjectId(id);
 	dbConnect
 		.collection(collection)
-        .find({"_id":new ObjectId(id)})
-        .toArray(function(err,data) {
-        	output["courses"][0] = {};
-			output["courses"][0]["contentobjects"] = {};
-			output["courses"][0]["contentobjects"][id] = {};
-			output["courses"][0]["contentobjects"][id].title = data[0].displayTitle;
-			output["courses"][0]["contentobjects"][id].description = data[0].body;
-			output["courses"][0]["contentobjects"][id].id = id;
-			output["courses"][0]["contentobjects"][id].wordCount = 0; 
-			output["courses"][0]["contentobjects"][id].articles = {};
-			path = "0_" + id;
-			getChildren(dbo,id,"articles",path);
-			setPromiseInterval2(req, res, id);
+        .findOne(query,function(err,data) {     		
+        	for (const [key, value] of Object.entries(data.contentobjects)) {
+        		if (key == id) {
+        			if (req.query.format == "csv") {
+						res.set('Content-Type', 'text/csv');
+						res.send(json2csv({data: makeCSVOutput(value) }));
+					} else {
+						res.set('Content-Type', 'application/json');
+	       				res.send(JSON.stringify(value, null, 4));
+			       	}	
+			    }
+			}
 		});
 }
