@@ -12,7 +12,15 @@
         <div style="text-align: left">
             <subtitle id="description">
             </subtitle>
-            <h2>Module stats</h2>
+            <h2>Course overview</h2>
+            <table id="course-factbox">
+
+            </table>
+            <h2>XAPI Config</h2>
+            <table id="xapi-factbox">
+
+            </table>
+            <h2>Module overview</h2>
             <table id="factbox">
 
             </table>
@@ -27,6 +35,18 @@
                   </tr>
                 </thead>
                 <tbody id="section_table_body">
+        
+                </tbody>
+            </table>
+            <h2>Extensions</h2>
+            <table id="extensions-factbox">
+                <thead>
+                  <tr>
+                    <th>Extension</th>
+                    <th>Version</th>
+                  </tr>
+                </thead>
+                <tbody id="extensions_table_body">
         
                 </tbody>
             </table>
@@ -49,16 +69,35 @@
     tr.append(td2);
     document.getElementById(id).append(tr);
    }
+   function addExtensionDataToTable(id,data) {
+    var row = document.createElement('tr');
+    var name = document.createElement('td');
+    var version = document.createElement('td');
+    name.innerHTML = data.name;
+    version.innerHTML = data.version;
+    row.append(name);
+    row.append(version);
+    document.getElementById(id).append(row);
+   }
    function addDataToTable(id,data) {
     var row = document.createElement('tr');
     var number = document.createElement('td')
     var icon = document.createElement('td')
     var title = document.createElement('td')
     var words = document.createElement('td');
-    title.innerHTML = data.title;
+    if (data.isQuestion && data.activityID) {
+        var a = document.createElement("a");
+        a.setAttribute("href","/questionSummary?activity="+data.activityID+"%23/id/"+data.id);
+        a.setAttribute("target","_blank");
+        a.innerHTML = data.title;
+        title.append(a);
+    } else {
+        title.innerHTML = data.title;
+    }
     number.innerHTML = data.count;
     var img = document.createElement('img');
     img.setAttribute("src","/images/component-icons/icon-"+data.type+".png");
+    img.setAttribute("onerror","this.onerror=null;this.src='/images/component-icons/icon-default.png'")
     img.setAttribute("alt",data.type);
     icon.append(img);
     var p = document.createElement("span");
@@ -73,7 +112,30 @@
     document.getElementById(id).append(row);
    }
    $(document).ready( function () {
-        $.get('/api/contentObject/?id=<%= id %>', function(data) {
+        var activityID = null;
+        $.get('/api/contentObject/<%= id %>/config', function(data) {
+            addRowToTable("course-factbox","ID",data._id);
+            if (data._themePreset) {
+                addRowToTable("course-factbox","Theme",data._themePreset.parentTheme);
+                addRowToTable("course-factbox","Theme Preset",data._themePreset.displayName);
+            } else {
+                addRowToTable("course-factbox","Theme",data._theme);
+            }
+            if (data._extensions._xapi) {
+                if (!data._extensions._xapi || data._extensions._xapi._isEnabled == "false") {
+                    addRowToTable("xapi-factbox","Enabled","false");
+                } else {
+                    addRowToTable("xapi-factbox","Enabled","true");
+                    addRowToTable("xapi-factbox","Activity ID",data._extensions._xapi._activityID);
+                    activityID = data._extensions._xapi._activityID;
+                    addRowToTable("xapi-factbox","Endpoint",data._extensions._xapi._endpoint);
+                }
+            }
+            for (const [key, value] of Object.entries(data._enabledExtensions)) {
+               addExtensionDataToTable("extensions_table_body",value); 
+            }
+        });
+        $.get('/api/contentObject/<%= id %>', function(data) {
             var count = 1;
             document.getElementById("main-title").innerHTML = data.title;
             addRowToTable("factbox","ID",data.id);
@@ -92,6 +154,8 @@
                         var local = {};
                         local.type = "";
                         local.title = "";
+                        local.isQuestion = false;
+                        local.activityID = activityID;
                         if (typeof bvalue == "object") {
                             local.wordCount = bvalue.wordCount;
                             if (bvalue.title.trim() != "") {
@@ -102,8 +166,12 @@
                                     local.wordCount += cvalue.wordCount;
                                     if (local.type != "" && local.type.trim() == "graphic" && cvalue.type.trim() != "graphic") {
                                       local.type = cvalue.type;
+                                      local.isQuestion = cvalue.isQuestion;
+                                      local.id = cvalue.id;
                                     } else if (local.type == "") {
                                       local.type = cvalue.type;
+                                      local.isQuestion = cvalue.isQuestion;
+                                      local.id = cvalue.id;
                                     }
                                     if (cvalue.title.trim() != "" && local.title == "") {
                                         local.title = cvalue.title.trim();

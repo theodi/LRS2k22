@@ -122,6 +122,17 @@ app.get('/auth/google/callback',
     res.redirect('/profile');
   });
 
+function ensureAuthenticated(req, res, next) {
+  if (req.isAuthenticated())
+    return next();
+  else
+    unauthorised(res);
+}
+
+app.use('/private', ensureAuthenticated);
+app.use('/private', express.static(__dirname + '/private'));
+
+
 /* Define all the pages */
 
 /* Do not require login */
@@ -217,9 +228,13 @@ app.get('/api/courseDetail', function(req,res) {
   adaptapi.getCourses(req, res, dbo);
 });
 
-app.get('/api/contentObject/', function(req,res) {
+app.get('/api/contentObject/:id', function(req,res) {
   if (!userProfile && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
-  adaptapi.getContentObject(req, res, dbo);
+  adaptapi.getContentObject(req, res, dbo, req.params.id);
+});
+app.get('/api/contentObject/:id/config', function(req,res) {
+  if (!userProfile && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
+  adaptapi.getContentObjectConfig(req, res, dbo, req.params.id);
 });
 
 /*

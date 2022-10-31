@@ -94,6 +94,7 @@ function processData(dbo,data,parent_id,collection,path) {
 			} catch(err) {}
 			try {
 				if (data[i].properties._feedback) {
+					local[id].isQuestion = true;
 					if (!output["courses"][paths[0]]["contentobjects"][paths[1]]["questionCount"]) {
 						output["courses"][paths[0]]["contentobjects"][paths[1]]["questionCount"] = 0;
 					}
@@ -230,6 +231,31 @@ function updateCache(dbo) {
 	},10000);
 }
 
+function getConfig(dbo,id) {
+	var collection = "configs";
+	var dbConnect = dbo.getDb();
+	dbConnect
+		.collection(collection)
+        .find({"_courseId":new ObjectId(id)})
+        .toArray(function(err,data) {
+        	output["courses"][id]["config"] = data[0];
+        	if (data[0]._themePreset) {
+        		getThemePreset(dbo,id,data[0]._themePreset);
+        	}
+        })
+}
+
+function getThemePreset(dbo,id,themeid) {
+	var collection = "themepresets";
+	var dbConnect = dbo.getDb();
+	dbConnect
+		.collection(collection)
+        .find({"_id":new ObjectId(themeid)})
+        .toArray(function(err,data) {
+        	output["courses"][id]["config"]["_themePreset"] = data[0];
+        })
+}
+
 exports.updateCourseCache = function(dbo,localdb) {
 	console.log("Updaing cache");
 	var collection = "courses";
@@ -245,6 +271,7 @@ exports.updateCourseCache = function(dbo,localdb) {
 				output["courses"][id].title = data[i].displayTitle;
 				output["courses"][id]["contentobjects"] = {};
 				path = id;
+				getConfig(dbo,id);
 				getChildren(dbo,id,"contentobjects",path);
 			}
 			updateCache(localdb);
@@ -259,19 +286,19 @@ exports.getCourses = function(req, res, dbo) {
 		.collection(collection)
         .find({})
         .toArray(function(err,data) {
+        	console.log(data);
         	if (req.query.format == "csv") {
 				res.set('Content-Type', 'text/csv');
-				res.send(json2csv({data: makeCSVOutput(output) }));
+				res.send(json2csv({data: makeCSVOutput(data) }));
 			} else {
 				res.set('Content-Type', 'application/json');
-	        	res.send(JSON.stringify(output, null, 4));
+	        	res.send(JSON.stringify(data, null, 4));
 	        }
 		});
 }
 
-exports.getContentObject = function(req, res, dbo) {
+exports.getContentObject = function(req, res, dbo, id) {
 	var collection = "AdaptCourseCache";
-	var id = req.query.id;
 	var dbConnect = dbo.getDb();
 	var firstPart = "contentobjects." + id + ".id";
 	var query = {};
@@ -290,5 +317,25 @@ exports.getContentObject = function(req, res, dbo) {
 			       	}	
 			    }
 			}
+		});
+}
+
+
+exports.getContentObjectConfig = function(req, res, dbo, id) {
+	var collection = "AdaptCourseCache";
+	var dbConnect = dbo.getDb();
+	var firstPart = "contentobjects." + id + ".id";
+	var query = {};
+	query[firstPart] = ObjectId(id);
+	dbConnect
+		.collection(collection)
+        .findOne(query,function(err,data) {
+        	if (req.query.format == "csv") {
+				res.set('Content-Type', 'text/csv');
+				res.send(json2csv({data: makeCSVOutput(data.config) }));
+			} else {
+				res.set('Content-Type', 'application/json');
+	       		res.send(JSON.stringify(data.config, null, 4));
+			}	
 		});
 }
