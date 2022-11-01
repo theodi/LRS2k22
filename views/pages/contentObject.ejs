@@ -158,7 +158,7 @@
                         local.activityID = activityID;
                         if (typeof bvalue == "object") {
                             local.wordCount = bvalue.wordCount;
-                            if (bvalue.title.trim() != "") {
+                            if (bvalue.title.trim() != "" && bvalue.title.trim().toLowerCase() != "block title") {
                                 local.title = bvalue.title.trim();
                             }
                             for (const [ckey, cvalue] of Object.entries(data.articles[key].blocks[bkey].components)) {
@@ -173,7 +173,7 @@
                                       local.isQuestion = cvalue.isQuestion;
                                       local.id = cvalue.id;
                                     }
-                                    if (cvalue.title.trim() != "" && local.title == "") {
+                                    if (cvalue.title.trim() != "" && local.title == "" && cvalue.title.trim().toLowerCase() != "component title") {
                                         local.title = cvalue.title.trim();
                                     }
                                 }

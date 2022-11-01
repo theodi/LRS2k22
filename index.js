@@ -150,7 +150,6 @@ app.get('/page1', function(req, res) {
  * e.g. https://theodi.stream.org/xapi/activities/learning-lockker-stand-alone-xapi-test-dt%23/id/5fd8d72191349e0067628eb3
  */
 app.get('/questionSummary', function(req, res) {
-  console.log("Question summary");
   sitedata.user = userProfile;
   sitedata.page.title = "Question insights";
   sitedata.activity = encodeURIComponent(req.query.activity);

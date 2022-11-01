@@ -257,7 +257,7 @@ function getThemePreset(dbo,id,themeid) {
 }
 
 exports.updateCourseCache = function(dbo,localdb) {
-	console.log("Updaing cache");
+	console.log("Updating course cache");
 	var collection = "courses";
 	var dbConnect = dbo.getDb();
 	dbConnect
@@ -286,7 +286,6 @@ exports.getCourses = function(req, res, dbo) {
 		.collection(collection)
         .find({})
         .toArray(function(err,data) {
-        	console.log(data);
         	if (req.query.format == "csv") {
 				res.set('Content-Type', 'text/csv');
 				res.send(json2csv({data: makeCSVOutput(data) }));
