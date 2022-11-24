@@ -1,4 +1,4 @@
-<%- include('../partials/header', { data: data }) %>
+<%- include('../partials/header') %>
 <link rel="stylesheet" type="text/css" href="//cdn.datatables.net/1.12.1/css/jquery.dataTables.css">
 <link rel="stylesheet" type="text/css" href="//cdn.datatables.net/responsive/2.3.0/css/responsive.dataTables.min.css">
 <script type="text/javascript" charset="utf8" src="//cdn.datatables.net/1.12.1/js/jquery.dataTables.min.js"></script>
@@ -59,12 +59,20 @@
         tmp.innerHTML = str;
         return tmp.textContent || tmp.innerText || "";
     }
-   function addRowToTable(id,key,value) {
+   function addRowToTable(id,key,value,link) {
     var tr = document.createElement('tr');
     var td1 = document.createElement('td');
     var td2 = document.createElement('td');
     td1.innerHTML = key;
-    td2.innerHTML = value;
+    if (link) {
+        var anchor = document.createElement("a");
+        anchor.setAttribute("href",link);
+        anchor.setAttribute("target","_blank");
+        anchor.innerHTML = value;
+        td2.append(anchor);
+    } else {
+        td2.innerHTML = value;
+    }
     tr.append(td1);
     tr.append(td2);
     document.getElementById(id).append(tr);
@@ -113,6 +121,7 @@
    }
    $(document).ready( function () {
         var activityID = null;
+        var isXAPI = false;
         $.get('/api/contentObject/<%= id %>/config', function(data) {
             addRowToTable("course-factbox","ID",data._id);
             if (data._themePreset) {
@@ -125,6 +134,7 @@
                 if (!data._extensions._xapi || data._extensions._xapi._isEnabled == "false") {
                     addRowToTable("xapi-factbox","Enabled","false");
                 } else {
+                    isXAPI = true;
                     addRowToTable("xapi-factbox","Enabled","true");
                     addRowToTable("xapi-factbox","Activity ID",data._extensions._xapi._activityID);
                     activityID = data._extensions._xapi._activityID;
@@ -136,6 +146,10 @@
             }
         });
         $.get('/api/contentObject/<%= id %>', function(data) {
+            if (isXAPI) {
+                var dashboardLink = "/course/"+data.id+"/dashboard";
+                addRowToTable("xapi-factbox","Dashboard","View XAPI Dashboard",dashboardLink);
+            }
             var count = 1;
             document.getElementById("main-title").innerHTML = data.title;
             addRowToTable("factbox","ID",data.id);
@@ -143,7 +157,7 @@
             addRowToTable("factbox","# blocks",data.blockCount);
             addRowToTable("factbox","# asessments",data.assessmentCount);
             addRowToTable("factbox","# questions",data.questionCount);
-            addRowToTable("factbox","# words",data.wordCount);
+            addRowToTable("factbox","# words",data.wordCount,"/course/"+data.id+"/transcript");
             document.getElementById("description").innerHTML = data.description;
             for (const [key, value] of Object.entries(data.articles)) {
                 if (typeof value == "object") {

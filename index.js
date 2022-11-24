@@ -16,10 +16,6 @@ const adaptdb = require("./db/adapt-aat");
 
 module.exports = app;
 
-var sitedata = {};
-sitedata.user = null;
-sitedata.page = {};
-sitedata.page.title = "ODI Template (NodeJS + Express + OAuth)";
 app.set('view engine', 'ejs');
 
 app.use(session({
@@ -28,6 +24,17 @@ app.use(session({
   secret: 'SECRET' 
 }));
 
+//Put the user object in a global veriable so it can be accessed from templates
+app.use(function(req, res, next) {
+  try {
+    res.locals.user = req.session.passport.user;
+    next();
+  } catch (error) {
+    res.locals.user = req.session.user;
+    next();
+  }
+});
+
 app.use(express.static(__dirname + '/public'));
 
 app.use(cors());
@@ -35,20 +42,17 @@ app.use(cors());
 app.use(express.json());
 
 app.get('/', function(req, res) {
-  if (userProfile) {
+  if (req.session.passport) {
     res.redirect("/profile");
-  } else {
-    sitedata.page.title = "ODI Template (NodeJS + Express + OAuth)";
-    res.render('pages/auth', {
-      data: sitedata
-    });
+  } else { 
+    res.locals.pageTitle ="ODI Template (NodeJS + Express + OAuth)";
+    res.render('pages/auth');
   }
 });
 
 /*  PASSPORT SETUP  */
 
 const passport = require('passport');
-var userProfile;
 
 app.use(passport.initialize());
 app.use(passport.session());
@@ -58,9 +62,6 @@ app.set('view engine', 'ejs');
 app.post('/logout', function(req, res, next){
   req.logout(function(err) {
     if (err) { return next(err); }
-    sitedata.user = null;
-    userProfile = null;
-    user = null;
     res.redirect('/');
   });
 });
@@ -88,7 +89,6 @@ passport.use(new GoogleStrategy({
   },
   function(accessToken, refreshToken, profile, done, req, res) {
     /* No idea what I'm doing here */
-      userProfile=profile;
       email = profile.emails[0].value;
       var dbConnect = dbo.getDb();
       dbConnect
@@ -97,16 +97,12 @@ passport.use(new GoogleStrategy({
         .toArray(function(err,items) {
           if (items.length < 1) {
             userHandler.insertUser(dbo,profile);
-            return done(null, userProfile);
+            return done(null, profile);
           } else if (items[0].suspended) {
-            sitedata.user = null;
-            userProfile = null;
-            user = null;
             return done(null, null);
           } else {
             userHandler.updateLastLoginTime(dbo,email);
-            userProfile = items[0];
-            return done(null, userProfile);
+            return done(null, profile);
           }
         });
   }
@@ -138,11 +134,8 @@ app.use('/private', express.static(__dirname + '/private'));
 /* Do not require login */
 
 app.get('/page1', function(req, res) {
-  sitedata.user = userProfile;
-  sitedata.page.title = "Page 1";
-  res.render('pages/page1', {
-    data: sitedata
-  })
+  res.locals.pageTitle = "Page 1";
+  res.render('pages/page1');
 });
 
 /*
@@ -150,64 +143,56 @@ app.get('/page1', function(req, res) {
  * e.g. https://theodi.stream.org/xapi/activities/learning-lockker-stand-alone-xapi-test-dt%23/id/5fd8d72191349e0067628eb3
  */
 app.get('/questionSummary', function(req, res) {
-  sitedata.user = userProfile;
-  sitedata.page.title = "Question insights";
-  sitedata.activity = encodeURIComponent(req.query.activity);
-  res.render('pages/questionSummary', {
-    data: sitedata
-  })
+  res.locals.pageTitle = "Question insights";
+  res.locals.activity = encodeURIComponent(req.query.activity);
+  res.render('pages/questionSummary');
 });
 
 /* Require user to be logged in */
 
 function unauthorised(res) {
-  sitedata.user = null;
-  sitedata.page.title = "401 Unauthorised";
-  return res.status(401).render("errors/401", {
-    data: sitedata
-  });
+  res.locals.pageTitle = "401 Unauthorised";
+  return res.status(401).render("errors/401");
 }
 
 app.get('/profile', function(req, res) {
-  if (!userProfile) { unauthorised(res); return; }
-  sitedata.user = userProfile;
-  sitedata.page.title = "Profile page";
-  res.render('pages/profile', {
-    data: sitedata
-  })
+  if (!req.isAuthenticated()) { unauthorised(res); return; }
+  res.locals.pageTitle = "Profile page";
+  res.render('pages/profile');
 });
 
 app.get('/courses', function(req, res) {
-  if (!userProfile) { unauthorised(res); return; }
+  if (!req.isAuthenticated()) { unauthorised(res); return; }
+  res.locals.pageTitle = "Courses";
+  res.render('pages/courses');
 
-  sitedata.user = userProfile;
-  sitedata.page.title = "Courses";
-  var dbConnectAAT = adaptdb.getDb();
-  dbConnectAAT
-    .collection("courses")
-    .find({})
-      .toArray(function(err,items) {
-        res.render('pages/courses', {
-          data: sitedata,
-          courses: items
-        })
-      });
 });
 
 app.get('/course/:id', function(req, res) {
-  if (!userProfile) { unauthorised(res); return; }
-  sitedata.user = userProfile;
-  sitedata.page.title = "Course" + req.params.id;
-  res.render('pages/contentObject', {
-    data: sitedata,
-    id: req.params.id
-  });
+  if (!req.isAuthenticated()) { unauthorised(res); return; }
+  res.locals.pageTitle = "Course" + req.params.id;
+  res.locals.id = req.params.id;
+  res.render('pages/contentObject');
+});
+
+app.get('/course/:id/dashboard', function(req,res) {
+  if (!req.isAuthenticated()) { unauthorised(res); return; }
+  res.locals.pageTitle = "Course " + req.params.id;
+  res.locals.id = req.params.id;
+  res.render('pages/contentObjectDashboard');
+});
+
+app.get('/course/:id/transcript', function(req,res) {
+  if (!req.isAuthenticated()) { unauthorised(res); return; }
+  res.locals.pageTitle = "Course " + req.params.id;
+  res.locals.id = req.params.id;
+  res.render('pages/contentObjectTranscript');
 });
 
 /* API requests private methods */ 
 
 app.get('/api/activityData', function (req, res) {
-  if (!userProfile) { unauthorised(res); return; }
+  if (!req.isAuthenticated()) { unauthorised(res); return; }
   api.getActivityData(req, res); 
 });
 
@@ -218,21 +203,21 @@ app.get('/api/activityData', function (req, res) {
  * List all courses
  */ 
 app.get('/api/courses', function(req,res) {
-  if (!userProfile && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
+  if (!req.isAuthenticated() && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
   adaptapi.getObjectsFromCollection(req, res, adaptdb, "courses");
 });
 
 app.get('/api/courseDetail', function(req,res) {
-  if (!userProfile && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
+  if (!req.isAuthenticated() && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
   adaptapi.getCourses(req, res, dbo);
 });
 
 app.get('/api/contentObject/:id', function(req,res) {
-  if (!userProfile && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
+  if (!req.isAuthenticated() && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
   adaptapi.getContentObject(req, res, dbo, req.params.id);
 });
 app.get('/api/contentObject/:id/config', function(req,res) {
-  if (!userProfile && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
+  if (!req.isAuthenticated() && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
   adaptapi.getContentObjectConfig(req, res, dbo, req.params.id);
 });
 
@@ -250,13 +235,11 @@ app.get('/api/questionSummary', function (req, res) {
  * e.g. api/blocks/?parentId=xxxxxx
  */
 app.get('/api/:collection/', function(req,res) {
-  if (!userProfile && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
+  if (!req.isAuthenticated() && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
   if (req.query.parentId) {
     adaptapi.findObjectsWithParentId(req, res, adaptdb, req.params.collection, req.query.parentId);
   } else {
-    return res.status(400).render("errors/400", {
-      data: sitedata
-    });
+    return res.status(400).render("errors/400");
   }
 });
 
@@ -267,17 +250,15 @@ app.get('/api/:collection/', function(req,res) {
  * e.g. api/block/xxxxxx
  */
 app.get('/api/:collection/:id', function(req,res) {
-  if (!userProfile && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
+  if (!req.isAuthenticated() && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
   adaptapi.getObjectById(req, res, adaptdb, req.params.collection, req.params.id);
 });
 
 //Keep this at the END!
 
 app.get('*', function(req, res){
-  sitedata.page.title = "404 Not Found";
-  return res.status(404).render("errors/404", {
-    data: sitedata
-  });
+  res.locals.pageTitle = "404 Not Found";
+  return res.status(404).render("errors/404");
 });
 
 adaptdb.connectToServer(function (err) {
@@ -285,7 +266,7 @@ adaptdb.connectToServer(function (err) {
     console.log(err);
   }
 });
-
+/*
 setTimeout(() => {
   adaptapi.updateCourseCache(adaptdb,dbo);
 },2000);
@@ -293,7 +274,7 @@ setTimeout(() => {
 setInterval(() => {
   adaptapi.updateCourseCache(adaptdb,dbo);
 },1800000);
-
+*/
 /* Run server */
 
 // perform a database connection when the server starts

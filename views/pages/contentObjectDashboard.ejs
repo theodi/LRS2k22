@@ -1,0 +1,645 @@
+<%- include('../partials/header') %>
+<link rel="stylesheet" type="text/css" href="//cdn.datatables.net/1.12.1/css/jquery.dataTables.css">
+<link rel="stylesheet" type="text/css" href="//cdn.datatables.net/responsive/2.3.0/css/responsive.dataTables.min.css">
+<!--<link rel="stylesheet" type="text/css" href="//unpkg.com/dc@4/dist/style/dc.css">-->
+<link rel='stylesheet prefetch' href='/css/dc.css'>
+<script type="text/javascript" charset="utf8" src="//cdn.datatables.net/1.12.1/js/jquery.dataTables.min.js"></script>
+<script type="text/javascript" charset="utf8" src="//cdn.datatables.net/responsive/2.3.0/js/dataTables.responsive.min.js"></script>
+<script type="text/javascript" charset="utf8" src="//cdn.datatables.net/buttons/2.2.3/js/dataTables.buttons.min.js"></script>
+<script type="text/javascript" charset="utf8" src="//cdn.datatables.net/buttons/2.2.3/js/buttons.colVis.min.js"></script>
+<script src='/js/d3.min.js'></script>
+<script src='/js/crossfilter.js'></script>
+<script src='/js/dc.js'></script>
+<script src='/js/colorbrewer.js'></script>
+<!--
+<script type="text/javascript" charset="utf8" src="//unpkg.com/dc@4/dist/dc.js"></script>
+<script type="text/javascript" charset="utf8" src="//npmcdn.com/universe@latest/universe.js"></script>
+<script type="text/javascript" charset="utf8" src="//rawgit.com/crossfilter/reductio/master/reductio.js"></script>
+<script type="text/javascript" charset="utf8" src="//unpkg.com/crossfilter2@1.4/crossfilter.js"></script>
+<script type="text/javascript" charset="utf8" src="//unpkg.com/d3@5/dist/d3.js"></script>
+-->
+<div class="container box">
+    <div class="jumbotron text-primary" style="padding: 1em; line-height: 1.5em;">
+        <h1 id="main-title"><span class="fa fa-lock"></span>Loading...</h1>
+        <div style="text-align: left">
+            <h2>Course stats</h2>
+            <subsection id="course_completion" class="question">
+                <div class="questionText">
+                    <h3>Overall course completion</h3>
+                </div>
+                <div class="correct_block">
+                    <div class="label">Total records</div>
+                    <div id="total_records" class="number-chart dc-chart">
+                    </div>
+                </div>
+                <div id="chart_block">
+                     <div id="complete-labels" class="chart_labels"></div>
+                     <div id="complete-line"></div>
+                </div>
+            </subsection>
+            <subsection id="assessment_completion" class="question">
+                <div class="questionText">
+                    <h3>Assessment status</h3>
+                </div>
+                <div id="chart_block">
+                     <div id="assessment-labels" class="chart_labels"></div>
+                     <div id="assessment-line"></div>
+                </div>
+            </subsection>
+            <subsection id="email" class="question">
+                <div class="questionText">
+                    <h3>Known email address</h3>
+                </div>
+                <div id="chart_block">
+                     <div id="email-labels" class="chart_labels"></div>
+                     <div id="email-line"></div>
+                </div>
+            </subsection>
+            <subsection id="percentage" class="question">
+                <div class="questionText">
+                    <h3>Percentage complete</h3>
+                </div>
+                <div id="chart_block">
+                     <div id="percentage-bar"></div>
+                </div>
+            </subsection>
+            <subsection id="time" class="question">
+                <div class="questionText">
+                    <h3>Session time (mins up to 20)</h3>
+                </div>
+                <div id="chart_block">
+                     <div id="time-bar"></div>
+                </div>
+            </subsection>
+            <h2>Block completions</h2>
+            <section id="blocks" style="margin: 0px;">
+            </section>              
+
+            <h2>Question Answers</h2>
+            <section id="questions">
+            </section>              
+        </div>
+    </div>
+</div>
+<script>
+
+var module = getUrlVars()["module"];
+var completeLine = dc.rowChart('#complete-line');
+var passedLine = dc.rowChart('#assessment-line');
+var emailLine = dc.rowChart('#email-line');
+var completeBar = dc.barChart('#percentage-bar');
+var timeBar = dc.barChart('#time-bar');
+var questionIDs = [];
+
+function getUrlVars() {
+    var vars = {};
+    var parts = window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m,key,value) {
+        vars[key] = value;
+    });
+    return vars;
+}
+
+function isInt(n){
+    return Number(n) === n && n % 1 === 0;
+}
+
+function removeHTML(str){ 
+    var tmp = document.createElement("DIV");
+    tmp.innerHTML = str;
+    return tmp.textContent || tmp.innerText || "";
+}
+
+function addRowToTable(id,key,value) {
+    var tr = document.createElement('tr');
+    var td1 = document.createElement('td');
+    var td2 = document.createElement('td');
+    td1.innerHTML = key;
+    td2.innerHTML = value;
+    tr.append(td1);
+    tr.append(td2);
+    document.getElementById(id).append(tr);
+}
+
+function addTrackingBlock(id,data) {
+    var block = document.createElement('subsection');
+    block.setAttribute('id','block_' + data.blockID);
+    block.setAttribute('class','question');
+
+    var text = document.createElement('div');
+    text.setAttribute('class','questionText');
+
+    var title = document.createElement('h3')
+    title.innerHTML = data.title;
+    
+    var number = document.createElement('p')
+    number.innerHTML = data.blockID;
+
+    text.append(title);
+    text.append(number);
+    
+    var icon = document.createElement('div');
+    icon.setAttribute('class','correct_block');
+    var img = document.createElement('img');
+    img.setAttribute("src","/images/component-icons/icon-"+data.type+".png");
+    img.setAttribute("onerror","this.onerror=null;this.src='/images/component-icons/icon-default.png'")
+    img.setAttribute("alt",data.type);
+
+    var label = document.createElement('div');
+    label.setAttribute('class','label');
+    label.innerHTML = data.type;
+
+    icon.append(label);
+    icon.append(document.createElement('br'));
+    icon.append(img);
+
+    var chart = document.createElement("div");
+    chart.setAttribute('id','chart_block');
+
+    var labels = document.createElement("div");
+    labels.setAttribute('class','chart_labels');
+    labels.setAttribute('id','labels_'+data.blockID);
+    
+    var line = document.createElement('div');
+    line.setAttribute('id','line_'+data.blockID);
+
+    chart.append(labels);
+    chart.append(line);
+
+    var bar = document.createElement('div');
+    bar.setAttribute('id','bar_'+data.blockID);
+
+    block.append(text);
+    block.append(icon);
+    block.append(chart);
+
+    chart.append(bar);
+
+    document.getElementById(id).append(block);
+}
+
+function addDataToTable(id,data) {
+    var row = document.createElement('tr');
+    var number = document.createElement('td')
+    var icon = document.createElement('td')
+    var title = document.createElement('td')
+    var words = document.createElement('td');
+    if (data.isQuestion && data.activityID) {
+        var a = document.createElement("a");
+        a.setAttribute("href","/questionSummary?activity="+data.activityID+"%23/id/"+data.id);
+        a.setAttribute("target","_blank");
+        a.innerHTML = data.title;
+        title.append(a);
+    } else {
+        title.innerHTML = data.title;
+    }
+    number.innerHTML = data.blockID + "<br/>" + data.id;
+    var img = document.createElement('img');
+    img.setAttribute("src","/images/component-icons/icon-"+data.type+".png");
+    img.setAttribute("onerror","this.onerror=null;this.src='/images/component-icons/icon-default.png'")
+    img.setAttribute("alt",data.type);
+    icon.append(img);
+    var p = document.createElement("span");
+    p.style.paddingLeft = "10px";
+    p.innerHTML = data.type;
+    icon.append(p);
+    words.innerHTML = data.wordCount;
+    row.append(number);
+    row.append(icon);
+    row.append(title);
+    row.append(words);
+    document.getElementById(id).append(row);
+}
+
+$(document).ready( function () {
+    var activityID = null;
+    var trackingBlocks = [];
+    $.get('/api/contentObject/<%= id %>/config', function(data) {
+        if (data._extensions._xapi) {
+            if (!data._extensions._xapi || data._extensions._xapi._isEnabled == "false") {
+            } else {
+                activityID = data._extensions._xapi._activityID;
+            }
+        }
+    });
+    $.get('/api/contentObject/<%= id %>', function(data) {
+        var count = 1;
+        document.getElementById("main-title").innerHTML = data.title;
+        for (const [key, value] of Object.entries(data.articles)) {
+            if (typeof value == "object") {
+                if (value.title.trim() != "") {
+                    //addTitleToList("section_titles",value.title.trim());
+                }
+                for (const [bkey, bvalue] of Object.entries(data.articles[key].blocks)) {
+                    var local = {};
+                    local.type = "";
+                    local.title = "";
+                    local.isQuestion = false;
+                    local.activityID = activityID;
+                    if (typeof bvalue == "object") {
+                        local.wordCount = bvalue.wordCount;
+                        if (bvalue.title.trim() != "" && bvalue.title.trim().toLowerCase() != "block title") {
+                            local.title = bvalue.title.trim();
+                            local.blockID = bvalue.id;
+                            trackingBlocks.push(bvalue.id);
+                        }
+                        for (const [ckey, cvalue] of Object.entries(data.articles[key].blocks[bkey].components)) {
+                            if (typeof cvalue == "object") {
+                                local.wordCount += cvalue.wordCount;
+                                if (local.type != "" && local.type.trim() == "graphic" && cvalue.type.trim() != "graphic") {
+                                  local.type = cvalue.type;
+                                  local.isQuestion = cvalue.isQuestion;
+                                  local.id = cvalue.id;
+                                } else if (local.type == "") {
+                                  local.type = cvalue.type;
+                                  local.isQuestion = cvalue.isQuestion;
+                                  local.id = cvalue.id;
+                                }
+                                if (cvalue.title.trim() != "" && local.title == "" && cvalue.title.trim().toLowerCase() != "component title") {
+                                    local.title = cvalue.title.trim();
+                                }
+                            }
+                        }
+                    }
+                    if (local.type != "" && local.title !="") {
+                        local.count = count;
+                        //addDataToTable("section_table_body",local);
+                        addTrackingBlock("blocks",local);
+                        count += 1;
+                    } else if (local.title != "") {
+                        local.count = count;
+                        local.type = "default";
+                        //addDataToTable("section_table_body",local);
+                        addTrackingBlock("blocks",local);
+                        count += 1;
+                    }
+                }   
+            }
+        }
+        //loadData(activityID+"%23/id/"+data.id,trackingBlocks);
+        loadData(activityID,trackingBlocks);
+    });
+});
+
+function loadData(activityID,trackingBlocks) {
+    var url = 'http://localhost:3080/api/activityData?activity='+ activityID + '&related_activities=true';
+    console.log(url);
+    d3.csv(url, function (data) {
+        console.log(data);
+
+        var ndx = crossfilter(data);
+        var all = ndx.groupAll();
+        var doneLabels = [];
+/*
+        questions = {};
+        questionData = {};
+        data.forEach(function(row) {
+          keys = Object.keys(row);
+          for (i=9;i<keys.length;i++) {
+            questionId = keys[i].substr(0,keys[i].lastIndexOf("_"));
+            questionPart = keys[i].substr(keys[i].lastIndexOf("_")+1,keys[i].length);
+            if (questionId) {
+              if (!questions[questionId]) questions[questionId] = {};
+              questions[questionId][questionPart] = true;
+            }
+          }
+        });
+
+        var topCount = {};
+        data.forEach(function(row) {
+          for(var key in questions) {
+            if (!topCount[key]) topCount[key] = {};
+            for(var part in questions[key]) {
+              if (!topCount[key][part]) topCount[key][part] = {};
+              if(row[key+"_"+part] != "" && row[key+"_"+part]) {
+                if (!topCount[key][part][questions[key][part]]) topCount[key][part][questions[key][part]] = 0;
+                topCount[key][part][questions[key][part]]++;
+              }
+            }
+          }
+        });
+
+        var range = {};
+        for (var key in questions) {
+          range[key] = 0;
+          for(var part in questions[key]) {
+              if (topCount[key][part][questions[key][part]] > range[key]) {
+                range[key] = topCount[key][part][questions[key][part]];
+              }
+          }
+        }
+
+        questionsHTML = "";
+        for (var key in questions) {
+          questionid = "question_"+key;
+          questionsHTML = "";
+          questionsHTML += "<subsection id='"+questionid+"' class='question'>";
+          questionsHTML += "<div class='correct_block'><div class='label'>Correct answers:</div><div id='question_" + key + "_isCorrect' class='number-chart'></div></div>"
+          questionsHTML += "<table id='table_"+key+"'></table></subsection>";
+          $('#questions').append(questionsHTML);
+          for(var part in questions[key]) {
+            if (part == "isCorrect") {
+              continue;
+            }
+            lkey = key+"_"+part;
+            docid = "question_"+lkey;
+            labelid = "label_"+lkey;
+            questionsHTML = "";
+            questionsHTML += "<tr><td class='label-cell'><div class='label' id='" + labelid + "'>Question answer</div></td>";
+            questionsHTML += "<td><div id='" + docid + "' class='dc-chart question-chart'></div></td></tr>";
+            $('#table_'+key).append(questionsHTML);
+          }
+          $.getJSON( "../api/v1/getComponent.php?id="+key+"&module="+module, function( data ) {
+            questionData[data["_id"]] = data;
+            title = "<div class='questionText'><h3>" + data["title"] +"</h3>" + data["body"] + "</div>";
+            $('#question_'+data["_id"]).prepend(title);
+            items = data["_items"];
+            for(i=0;i<items.length;i++) {
+              if (items[i]["_shouldBeSelected"]) {
+                $('#label_'+data["_id"]+'_'+i).parent().addClass("correct");
+              }
+              $('#label_'+data["_id"]+'_'+i).html(items[i]["text"]);
+            }
+            $('#label_'+data["_id"]+'_isCorrect').html('Correct users')
+          });
+        }
+        */
+        function remove_empty_bins(source_group) {
+            return {
+                all:function () {
+                    return source_group.all().filter(function(d) {
+                        return d.key != "";
+                    });
+                },
+                top:function () {
+                  return source_group.all().filter(function(d) {
+                        return d.key != "";
+                    });
+                }
+            };
+        }
+
+
+        var complete = ndx.dimension(function(d) {
+            if (d.passed == "http://adlnet.gov/expapi/verbs/passed") {
+              return "Complete";
+            }
+            if (d.complete == "false" || d.complete == "") {
+              return "Incomplete";
+            }
+            return d.complete;
+        });
+        
+        var completeGroup = complete.group();
+        completeGroup = remove_empty_bins(completeGroup);
+
+        doneLabels["complete"] = [];
+
+        completeLine
+        .width(320)
+        .height(150)
+        .dimension(complete)
+        .group(completeGroup)
+        .margins({top: 0, left: 0, right: 10, bottom: -1})
+        .renderLabel(true)
+        .label(function (d) {
+          if (!doneLabels["complete"][d.key]) {
+            labelText = d.key;
+            $('#complete-labels').append("<div class='chart-label complete-label'><div class='chart-label-text label'>"+labelText+"</div></div>");
+            doneLabels["complete"][d.key] = true;
+            height = 100 / Object.keys(doneLabels["complete"]).length;
+            $('.complete-label').css('height',height + '%');
+          }
+          return d.value;
+        })
+        .elasticX(false)
+        .xAxis().ticks(0);
+
+        var passed = ndx.dimension(function(d) {
+            if (d.passed == "http://adlnet.gov/expapi/verbs/passed") {
+              return "Passed";
+            }
+            if (d.passed == "false") {
+              return "Failed";
+            }
+            if (d.passed == "") {
+              return "not attempted";
+            }
+            return d.passed;
+        });
+
+        var passedGroup = passed.group();
+        passedGroup = remove_empty_bins(passedGroup);
+
+        doneLabels["passed"] = [];
+        passedLine
+        .width(320)
+        .height(150)
+        .dimension(passed)
+        .group(passedGroup)
+        .margins({top: 0, left: 0, right: 10, bottom: -1})
+        .renderLabel(true)
+        .label(function (d) {
+          if (!doneLabels["passed"][d.key]) {
+            labelText = d.key;
+            $('#assessment-labels').append("<div class='chart-label assessment-label'><div class='chart-label-text label'>"+labelText+"</div></div>");
+            doneLabels["passed"][d.key] = true;
+            height = 100 / Object.keys(doneLabels["passed"]).length;
+            $('.assessment-label').css('height',height + '%');
+          }
+          return d.value;
+        })
+        .elasticX(false)
+        .xAxis().ticks(0);
+
+        var email = ndx.dimension(function(d) {
+            if (d.mbox == "" || d.mbox == "false") {
+              return "No";
+            } else {
+              return "Yes";
+            }
+            return d.mbox;
+        });
+
+        var emailGroup = email.group();
+        doneLabels["email"] = [];
+
+        emailLine
+        .width(320)
+        .height(150)
+        .dimension(email)
+        .group(emailGroup)
+        .margins({top: 0, left: 0, right: 10, bottom: -1})
+        .renderLabel(true)
+        .label(function (d) {
+          if (!doneLabels["email"][d.key]) {
+            labelText = d.key;
+            $('#email-labels').append("<div class='chart-label email-label'><div class='chart-label-text label'>"+labelText+"</div></div>");
+            doneLabels["email"][d.key] = true;
+            height = 100 / Object.keys(doneLabels["email"]).length;
+            $('.email-label').css('height',height + '%');
+          }
+          return d.value;
+        })
+        .elasticX(false)
+        .xAxis().ticks(0);
+
+        var percent = ndx.dimension(function(d) {
+          var count = 0;
+          var prefix = activityID + "#/id/"
+          for(i=0;i<trackingBlocks.length;i++) {
+            path = prefix + trackingBlocks[i];
+            if (d[path] == "http://adlnet.gov/expapi/verbs/completed" || d[path] == "http://adlnet.gov/expapi/verbs/answered") {
+                count += 1;
+            }
+          }
+          return Math.round((count / trackingBlocks.length) * 100);
+        });
+
+        var percentGroup = percent.group().reduceCount();
+
+        completeBar
+        .width(400)
+        .height(160)
+        .dimension(percent)
+        .group(percentGroup)
+        .x(d3.scale.linear().domain([0,100]))
+        .xUnits(function(){return 10;})
+        //.yAxisLabel("No. of profiles")
+        .gap(0.1)
+        .brushOn(true);
+
+        completeBar.margins().left = 40;
+
+        var timeMax = 0;
+        var time = ndx.dimension(function(d) {
+            raw = d.timeSpentSeconds.split(":");
+          total = raw / 60;
+          if (total > timeMax) {timeMax = total;}
+          return +total;
+        });
+
+        var timeGroup = time.group().reduceCount();
+
+        timeBar
+        .width(400)
+        .height(160)
+        .dimension(time)
+        .group(timeGroup)
+        .x(d3.scale.linear().domain([0,timeMax]))
+        .gap(0.1)
+        .brushOn(true);
+
+        timeBar.margins().left = 40;
+
+        var id = ndx.dimension(function(d) {
+            return d.id;
+        });
+
+        var percent = ndx.dimension(function(d) {
+            value = Math.round(d.completion * 10);
+            return +value;
+        });
+
+        var blockIDs = {};
+        var prefix = activityID + "#/id/"
+        for (i=0;i<trackingBlocks.length;i++) {
+            console.log('processing block ' + path);
+            id = trackingBlocks[i];
+            path = prefix + id;
+            try {
+                var dimension = ndx.dimension(function(d) {
+                    if (d[path] == "http://adlnet.gov/expapi/verbs/completed" || d[path] == "http://adlnet.gov/expapi/verbs/answered") {
+                        return "complete_"+id;
+                    } else {
+                        return "incomplete_"+id;
+                    }
+                });
+            } catch(err) {
+                console.log(err);
+                break;
+            }
+            blockIDs[id] = dc.rowChart('#line_'+id);
+            var group = dimension.group();
+            var group2 = remove_empty_bins(group);
+            blockIDs[id]
+                .width(320)
+                .height(150)
+                .dimension(dimension)
+                .group(group2)
+                .margins({top: 0, left: 0, right: 10, bottom: -1})
+                .renderLabel(true)
+                .label(function (d) {
+                    console.log(d.key);
+                    var label = d.key.split("_")[0]
+                    var lid = d.key.split("_")[1];
+                    if (!doneLabels['bar_'+lid]) {
+                        doneLabels['bar_'+lid] = [];
+                    }
+                    if (!doneLabels['bar_'+lid][label]) {
+                        $('#labels_'+lid).append("<div class='chart-label'><div class='chart-label-text label'>"+label+"</div></div>");
+                        doneLabels['bar_'+lid][label] = true;
+                        height = 100 / Object.keys(doneLabels['bar_'+lid]).length;
+                        $('#labels_'+lid).find('.chart-label').css('height',height + '%');
+                    }
+                    return d.value;
+                })
+                .elasticX(false)
+                .xAxis().ticks(0);
+        }
+
+        /*
+        var tmpcount = 0;
+        for (var key in questions) {
+          for(var part in questions[key]) {
+            lkey = key+"_"+part;
+            docid = "question_"+lkey;
+
+            if (part == "isCorrect") {
+              questionIDs[lkey] = dc.numberDisplay('#' + docid);
+            } else {
+              questionIDs[lkey] = dc.rowChart('#' + docid);
+            }
+
+            var dimension = ndx.dimension(function(d) {
+              if (d[lkey] == "" || typeof d[lkey] == 'undefined' || d[lkey] == 0 || d[lkey] == "0") {
+                return "";
+              } else {
+                return "correct";
+              }
+            });
+            var group = dimension.group();
+            var group2 = remove_empty_bins(group);
+
+            if (part == "isCorrect") {
+              questionIDs[lkey]
+                .group(group2)
+                .formatNumber(d3.format(".3s"))
+            } else {
+            questionIDs[lkey]
+              .width(320)
+              .height(40)
+              .dimension(dimension)
+              .group(group2)
+              .margins({top: 0, left: 0, right: 10, bottom: -1})
+              .renderLabel(true)
+              .x(d3.scale.linear().range([0,270]).domain([0,range[lkey.substr(0,lkey.lastIndexOf("_"))]]))
+              .label(function (d) {
+                return d.value;
+              })
+              .elasticX(false)
+              .xAxis().ticks(0)
+            }
+          }
+        }
+        */
+
+        var count = function() {
+            number = complete.top(Number.POSITIVE_INFINITY).length;
+            document.getElementById('total_records').innerHTML = number;
+        }
+        setInterval(function() { count(); },1000); 
+
+        dc.renderAll();
+    });
+}
+</script>

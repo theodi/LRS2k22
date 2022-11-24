@@ -65,6 +65,7 @@ const getStatements = async (activity, verb, since, until, related_activities) =
     if (until) { args.push("until=" + until); }
     if (related_activities) { args.push("related_activities=true"); }
     var query = base + args.join('&');
+    console.log(query);
 
     return await execQuery(query);
 }
@@ -186,6 +187,10 @@ function getSessionTime(sortedList) {
 function calculateSessionTimes(objects) {
     for (const [key, value] of Object.entries(objects)) {
         var sessionTime = value.progress.sessionTime;
+        if (!sessionTime)
+        {
+            return objects;
+        }
         sorted = sessionTime.sort(
             (objA, objB) => new Date(objA.timestamp) - new Date(objB.timestamp),
         );
@@ -307,11 +312,12 @@ function processActivityDataObjects(objects,activity,related_activities) {
                 }
                 verb = a.verb.id;
                 if(objectid == activity) {
-                    if (verb == "http://adlnet.gov/expapi/verbs/passed") {
+                    if (verb == "http://adlnet.gov/expapi/verbs/passed" || verb == "http://adlnet.gov/expapi/verbs/failed") {
+                        console.log(verb);
                         objectid = "passed";
                     } else if (verb == "http://adlnet.gov/expapi/verbs/completed") {
                         objectid = "completed";
-                    } else { 
+                    } else {
                         objectid = "sessionTime";
                     }
                 }

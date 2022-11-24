@@ -185,7 +185,7 @@ function setPromiseInterval(req,res) {
 	        	}
 			});
 		}
-	},10000);
+	},20000);
 }
 
 function setPromiseInterval2(req,res,id) {
@@ -218,6 +218,7 @@ function getChildren(dbo,parent_id,collection,path) {
 
 function updateCache(dbo) {
 	var resolve = setInterval(() => {
+		console.log("Updating database");
 		Promise.all(promises).then((values) => {
 			clearInterval(resolve);
 			courses = output["courses"];
@@ -228,7 +229,7 @@ function updateCache(dbo) {
       				.updateOne({_id:new ObjectId(key)},{ $set: value },{upsert: true});
 			}
 		})
-	},10000);
+	},20000);
 }
 
 function getConfig(dbo,id) {

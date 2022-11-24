@@ -1,4 +1,4 @@
-<%- include('../partials/header', { data: data }) %>
+<%- include('../partials/header') %>
 <script src="//cdnjs.cloudflare.com/ajax/libs/d3/5.12.0/d3.min.js"></script>
 <script src="//cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 
@@ -63,7 +63,7 @@ function splitter(str, l){
 }
 
 try {
-  d3.json('//localhost:3080/api/questionSummary?activity=<%= data.activity %>').then(data => {
+  d3.json('//localhost:3080/api/questionSummary?activity=<%= activity %>').then(data => {
 
     object = data.object.definition;
     responses = data.responses;
