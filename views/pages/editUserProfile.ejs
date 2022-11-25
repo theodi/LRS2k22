@@ -1,0 +1,85 @@
+<!-- views/profile.ejs -->
+<%- include('../partials/header') %>
+<style>
+#Picture {
+  display: inline-block;
+  vertical-align: text-bottom;
+  width: 200px;
+}
+#details {
+  display: inline-block;
+  vertical-align: top;
+  margin-top: 1em;
+}
+#details h2 {
+  margin: 0px;
+  line-height: 20px;
+}
+#details h3 {
+  font-size: 1.2em;
+  margin-bottom: 0px;
+}
+#details p {
+  font-size: 0.8em;
+}
+label, select {
+  display: inline-block;
+}
+label {
+  width: 200px;
+}
+</style>
+<div class="container box">
+    <div class="jumbotron text-center text-primary">
+        <h1><span class="fa fa-lock"></span>Edit user</h1>
+        <h2 style="color:red;" id="message"><%= msg %></h2>
+        <p>Note: Most fields are not able to be updated as they as set through OAuth</p>
+        <span id="Picture">
+
+        </span>
+        <span id="details">
+          <h2 id="name"></h2>
+          <h3 id="email"></h3>
+          <p id="lastLogin"></p>
+        </span>
+        <form action="/user/<%= userid %>" method="post" id="userform">
+          <label for="Role">Role</label>
+          <select id="Role" name="Role" form="userform"></select><br/>
+          <label for="Suspended">Suspended</label>
+          <select id="Suspended" name="Suspended" form="userform"></select><br/><br/>
+          <input type="submit" value="Submit">
+        </form>
+      </table>
+    </div>
+</div>
+<script>
+  function addOptions(attribute,value,options) {
+    var select = document.getElementById(attribute);
+    for(var i=0;i<options.length;i++) {
+      var option = document.createElement('option');
+      option.setAttribute('value',options[i]);
+      option.innerHTML = options[i];
+      if (options[i] == value.toString()) {
+        option.setAttribute('selected',true);
+      }
+      select.append(option);
+    }
+  }
+   $(document).ready( function () {
+    $.get('/api/user/<%= userid %>', function(user) {
+      var picture = document.getElementById('Picture');
+      var img = document.createElement('img');
+      img.setAttribute('src',user._json.picture);
+      img.setAttribute('alt',"picture of " + user._json.name);
+      picture.append(img);
+
+      document.getElementById('name').innerHTML = user._json.name;
+      document.getElementById('email').innerHTML = user._json.email;
+      document.getElementById('lastLogin').innerHTML = "Last login: " + user.lastLogin;
+  
+      addOptions("Role",user.userType,["user","manager","admin"]);
+      addOptions("Suspended",user.suspended,["true","false"]);
+    });
+   });
+</script>
+<%- include('../partials/footer') %>

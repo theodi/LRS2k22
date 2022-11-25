@@ -32,6 +32,33 @@ exports.getUsers = function(req,res,dbo,format) {
 		}
       });
 }
+exports.getUser = function(req,res,dbo,id,format) {
+	var dbConnect = dbo.getDb();
+	dbConnect
+      .collection("Users")
+      .find({'id': id})
+      .toArray(function(err,items) {
+      	if (format=="text/csv") {
+      		res.set('Content-Type', 'text/csv');
+			res.send(json2csv({data: makeCSVOutput(items[0]) }));
+		} else {
+			res.set('Content-Type', 'application/json');
+	        res.send(JSON.stringify(items[0], null, 4));
+		}
+      });
+}
+exports.updateUser = function(req,res,dbo,id) {
+	var updateRole = req.body.Role;
+	var updateSuspended = req.body.Suspended;
+	var dbConnect = dbo.getDb();
+	dbConnect
+      .collection("Users")
+      .updateOne({'id': id}, { $set: { suspended: updateSuspended, userType: updateRole }}, 
+      function(err,result) {
+      	res.locals.pageTitle = "Edit user";
+      	res.render('pages/editUserProfile', {userid: id, msg: "User updated"});
+      });
+}
 
 function makeCSVOutput(users) {
 	var output = [];

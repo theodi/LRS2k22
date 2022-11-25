@@ -23,6 +23,7 @@ if (process.env.SSLKEY) {
 }
 
 const app = express();
+app.use(express.urlencoded());
 
 module.exports = app;
 
@@ -109,7 +110,7 @@ passport.use(new GoogleStrategy({
           if (items.length < 1) {
             userHandler.insertUser(res,dbo,profile);
             return done(null, profile);
-          } else if (items[0].suspended) {
+          } else if (items[0].suspended.toString() == "true") {
             return done(null, null);
           } else {
             userHandler.updateLastLoginTime(res,dbo,email);
@@ -226,6 +227,13 @@ app.get('/users/', function(req,res) {
   res.render('pages/users');
 });
 
+app.get('/user/:id', function(req,res) {
+  if (!req.isAuthenticated()) { unauthorised(res); return; }
+  if (req.session.profile.userType != "admin") { forbidden(res); return; }
+  res.locals.pageTitle = "Edit user";
+  res.render('pages/editUserProfile', {userid: req.params.id, msg: ""});
+});
+
 /* API requests private methods */ 
 
 app.get('/api/activityData', function (req, res) {
@@ -266,7 +274,6 @@ app.get('/api/contentObject/:id/config', function(req,res) {
 
 /*
  * Get Users
- * TODO: Should really be an admin for this one!!
  *
  */
 app.get('/api/users', function(req,res) {
@@ -274,6 +281,21 @@ app.get('/api/users', function(req,res) {
   if (req.session.profile.userType != "admin") { forbidden(res); return; }
   userHandler.getUsers(req,res,dbo,req.query.format);
 });
+app.get('/api/user/:id', function(req,res) {
+  if (!req.isAuthenticated()) { unauthorised(res); return; }
+  if (req.session.profile.userType != "admin") { forbidden(res); return; }
+  userHandler.getUser(req,res,dbo,req.params.id,req.query.format);
+});
+/*
+ * Update user
+ */
+app.post('/user/:id', function(req, res, next){
+  if (!req.isAuthenticated()) { unauthorised(res); return; }
+  if (req.session.profile.userType != "admin") { forbidden(res); return; }
+  userHandler.updateUser(req,res,dbo,req.params.id);
+});
+
+
 /*
  * API requests, public methods 
  */

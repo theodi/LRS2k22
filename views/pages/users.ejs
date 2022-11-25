@@ -21,12 +21,13 @@
                 <th>Last login</th>
                 <th>Account type</th>
                 <th>Suspended</th>
+                <th>Edit</th>
             </tr>
-    </thead>
-    <tbody id="table_body">
+        </thead>
+        <tbody id="table_body">
         
-    </tbody>
-</table>
+        </tbody>
+        </table>
     </div>
 </div>
 <script>
@@ -69,6 +70,7 @@
             addToRow(row,users[i].lastLogin);
             addToRow(row,users[i].userType);
             addToRow(row,users[i].suspended);
+            addToRowLink(row,"user/"+users[i].id,"edit");
             if (user.email) {
                 document.getElementById('table_body').append(row);
             }
