@@ -107,12 +107,12 @@ passport.use(new GoogleStrategy({
         .find({'emails.0.value': email})
         .toArray(function(err,items) {
           if (items.length < 1) {
-            userHandler.insertUser(dbo,profile);
+            userHandler.insertUser(res,dbo,profile);
             return done(null, profile);
           } else if (items[0].suspended) {
             return done(null, null);
           } else {
-            userHandler.updateLastLoginTime(dbo,email);
+            userHandler.updateLastLoginTime(res,dbo,email);
             return done(null, profile);
           }
         });
@@ -138,7 +138,6 @@ function ensureAuthenticated(req, res, next) {
 
 app.use('/private', ensureAuthenticated);
 app.use('/private', express.static(__dirname + '/private'));
-
 
 /* Define all the pages */
 
@@ -166,14 +165,31 @@ function unauthorised(res) {
   return res.status(401).render("errors/401");
 }
 
+function forbidden(res) {
+  res.locals.pageTitle = "403 Forbidden";
+  return res.status(401).render("errors/403");
+}
+
 app.get('/profile', function(req, res) {
   if (!req.isAuthenticated()) { unauthorised(res); return; }
   res.locals.pageTitle = "Profile page";
-  res.render('pages/profile');
+  var dbConnect = dbo.getDb();
+  dbConnect
+      .collection("Users")
+      .find({'emails.0.value': email})
+      .toArray(function(err,items) {
+        res.locals.profile = {};
+        res.locals.profile.userType = items[0].userType;
+        res.locals.profile.suspended = items[0].suspended;
+        res.locals.profile.lastLogin = items[0].lastLogin;
+        req.session.profile = res.locals.profile;
+        res.render('pages/profile');
+      });
 });
 
 app.get('/courses', function(req, res) {
   if (!req.isAuthenticated()) { unauthorised(res); return; }
+  if (req.session.profile.userType == "user") { forbidden(res); return; }
   res.locals.pageTitle = "Courses";
   res.render('pages/courses');
 
@@ -181,6 +197,7 @@ app.get('/courses', function(req, res) {
 
 app.get('/course/:id', function(req, res) {
   if (!req.isAuthenticated()) { unauthorised(res); return; }
+  if (req.session.profile.userType == "user") { forbidden(res); return; }
   res.locals.pageTitle = "Course" + req.params.id;
   res.locals.id = req.params.id;
   res.render('pages/contentObject');
@@ -188,6 +205,7 @@ app.get('/course/:id', function(req, res) {
 
 app.get('/course/:id/dashboard', function(req,res) {
   if (!req.isAuthenticated()) { unauthorised(res); return; }
+  if (req.session.profile.userType == "user") { forbidden(res); return; }
   res.locals.pageTitle = "Course " + req.params.id;
   res.locals.id = req.params.id;
   res.render('pages/contentObjectDashboard');
@@ -195,15 +213,24 @@ app.get('/course/:id/dashboard', function(req,res) {
 
 app.get('/course/:id/transcript', function(req,res) {
   if (!req.isAuthenticated()) { unauthorised(res); return; }
+  if (req.session.profile.userType == "user") { forbidden(res); return; }
   res.locals.pageTitle = "Course " + req.params.id;
   res.locals.id = req.params.id;
   res.render('pages/contentObjectTranscript');
+});
+
+app.get('/users/', function(req,res) {
+  if (!req.isAuthenticated()) { unauthorised(res); return; }
+  if (req.session.profile.userType != "admin") { forbidden(res); return; }
+  res.locals.pageTitle = "Users";
+  res.render('pages/users');
 });
 
 /* API requests private methods */ 
 
 app.get('/api/activityData', function (req, res) {
   if (!req.isAuthenticated()) { unauthorised(res); return; }
+  if (req.session.profile.userType == "user") { forbidden(res); return; }
   api.getActivityData(req, res); 
 });
 
@@ -215,23 +242,38 @@ app.get('/api/activityData', function (req, res) {
  */ 
 app.get('/api/courses', function(req,res) {
   if (!req.isAuthenticated() && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
+  if (req.session.profile.userType == "user") { forbidden(res); return; }
   adaptapi.getObjectsFromCollection(req, res, adaptdb, "courses");
 });
 
 app.get('/api/courseDetail', function(req,res) {
   if (!req.isAuthenticated() && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
+  if (req.session.profile.userType == "user") { forbidden(res); return; }
   adaptapi.getCourses(req, res, dbo);
 });
 
 app.get('/api/contentObject/:id', function(req,res) {
   if (!req.isAuthenticated() && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
+  if (req.session.profile.userType == "user") { forbidden(res); return; }
   adaptapi.getContentObject(req, res, dbo, req.params.id);
 });
 app.get('/api/contentObject/:id/config', function(req,res) {
   if (!req.isAuthenticated() && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
+  if (req.session.profile.userType == "user") { forbidden(res); return; }
   adaptapi.getContentObjectConfig(req, res, dbo, req.params.id);
 });
 
+
+/*
+ * Get Users
+ * TODO: Should really be an admin for this one!!
+ *
+ */
+app.get('/api/users', function(req,res) {
+  if (!req.isAuthenticated()) { unauthorised(res); return; }
+  if (req.session.profile.userType != "admin") { forbidden(res); return; }
+  userHandler.getUsers(req,res,dbo,req.query.format);
+});
 /*
  * API requests, public methods 
  */
@@ -247,6 +289,7 @@ app.get('/api/questionSummary', function (req, res) {
  */
 app.get('/api/:collection/', function(req,res) {
   if (!req.isAuthenticated() && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
+  if (req.session.profile.userType == "user") { forbidden(res); return; }
   if (req.query.parentId) {
     adaptapi.findObjectsWithParentId(req, res, adaptdb, req.params.collection, req.query.parentId);
   } else {
@@ -262,6 +305,7 @@ app.get('/api/:collection/', function(req,res) {
  */
 app.get('/api/:collection/:id', function(req,res) {
   if (!req.isAuthenticated() && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
+  if (req.session.profile.userType == "user") { forbidden(res); return; }
   adaptapi.getObjectById(req, res, adaptdb, req.params.collection, req.params.id);
 });
 
@@ -278,15 +322,15 @@ adaptdb.connectToServer(function (err) {
   }
 });
 
-/*
-setTimeout(() => {
-  adaptapi.updateCourseCache(adaptdb,dbo);
-},2000);
+if (process.env.UPDATE_COURSE_CACHE == "true") {
+  setTimeout(() => {
+    adaptapi.updateCourseCache(adaptdb,dbo);
+  },2000);
 
-setInterval(() => {
-  adaptapi.updateCourseCache(adaptdb,dbo);
-},1800000);
-*/
+  setInterval(() => {
+    adaptapi.updateCourseCache(adaptdb,dbo);
+  },1800000);
+}
 
 /* Run server */
 

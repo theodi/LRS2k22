@@ -1,0 +1,87 @@
+<%- include('../partials/header') %>
+<link rel="stylesheet" type="text/css" href="//cdn.datatables.net/1.12.1/css/jquery.dataTables.css">
+<link rel="stylesheet" type="text/css" href="//cdn.datatables.net/responsive/2.3.0/css/responsive.dataTables.min.css">
+<link rel="stylesheet" type="text/css" href="//cdn.datatables.net/buttons/2.2.3/css/buttons.dataTables.min.css"/>
+<script type="text/javascript" charset="utf8" src="//cdn.datatables.net/1.12.1/js/jquery.dataTables.min.js"></script>
+<script type="text/javascript" charset="utf8" src="//cdn.datatables.net/responsive/2.3.0/js/dataTables.responsive.min.js"></script>
+<script type="text/javascript" charset="utf8" src="//cdn.datatables.net/buttons/2.2.3/js/dataTables.buttons.min.js"></script>
+<script type="text/javascript" charset="utf8" src="//cdn.datatables.net/buttons/2.2.3/js/buttons.colVis.min.js"></script>
+<script type="text/javascript" src="//cdn.datatables.net/buttons/2.2.3/js/buttons.html5.min.js"></script>
+<script type="text/javascript" src="//cdn.datatables.net/buttons/2.2.3/js/buttons.print.min.js"></script>
+
+<div class="container box">
+    <div class="jumbotron text-center text-primary">
+        <h1><span class="fa fa-lock"></span>Users</h1>
+        <table id="table" class="display responsive wrap" cellspacing="0" width="100%">
+        <thead>
+            <tr>
+                <th>Pic</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Last login</th>
+                <th>Account type</th>
+                <th>Suspended</th>
+            </tr>
+    </thead>
+    <tbody id="table_body">
+        
+    </tbody>
+</table>
+    </div>
+</div>
+<script>
+   function addToRow(row,value) {
+    var td = document.createElement('td');
+    td.innerHTML = value;
+    row.append(td);
+   }
+   function addToRowImage(row,src) {
+    var td = document.createElement('td');
+    var img = document.createElement('img');
+    img.setAttribute('src',src);
+    img.setAttribute('alt',"profile picture");
+    td.append(img);
+    row.append(td);
+   }
+   function addToRowLink(row,link,value) {
+    var td = document.createElement('td');
+    var a = document.createElement('a');
+    a.setAttribute('href', link);
+    a.innerHTML = value;
+    td.append(a)
+    row.append(td);
+   }
+   function addToRowHidden(row,value) {
+    var td = document.createElement('td');
+    td.className = "none";
+    td.innerHTML = value;
+    row.append(td);
+   }
+
+   $(document).ready( function () {
+    $.get('/api/users', function(users) {
+        for (var i=0;i<users.length;i++) {
+            user = users[i]._json;
+            var row = document.createElement('tr');
+            addToRowImage(row,user.picture);
+            addToRow(row,user.name);
+            addToRow(row,user.email);
+            addToRow(row,users[i].lastLogin);
+            addToRow(row,users[i].userType);
+            addToRow(row,users[i].suspended);
+            if (user.email) {
+                document.getElementById('table_body').append(row);
+            }
+        }
+        $('#table').DataTable({
+            dom: 'Bfrtip',
+            responsive: true,
+            pageLength: 25,
+            buttons: [
+               'copy', 'excel', 'csv'
+            ]
+        });
+    });
+});
+</script>
+<%- include('../partials/footer') %>
