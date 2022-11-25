@@ -6,13 +6,23 @@ require("dotenv").config({ path: "./config.env" });
 
 const express = require('express');
 const cors = require("cors");
+const http = require('http');
+const https = require('https');
+const fs = require('fs');
 const dbo = require("./db/conn");
-const app = express();
 const session = require('express-session');
 var api = require('./api');
 var adaptapi = require('./adaptHandler');
 var userHandler = require('./userHandler');
 const adaptdb = require("./db/adapt-aat");
+
+if (process.env.SSLKEY) {
+  var privateKey  = fs.readFileSync(process.env.SSLKEY, 'utf8');
+  var certificate = fs.readFileSync(process.env.SSLCERT, 'utf8');
+  var credentials = {key: privateKey, cert: certificate};
+}
+
+const app = express();
 
 module.exports = app;
 
@@ -81,11 +91,12 @@ passport.deserializeUser(function(obj, cb) {
 const GoogleStrategy = require('passport-google-oauth').OAuth2Strategy;
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const CALLBACK_URL = "//"+process.env.HOST+"/auth/google/callback"
 
 passport.use(new GoogleStrategy({
     clientID: GOOGLE_CLIENT_ID,
     clientSecret: GOOGLE_CLIENT_SECRET,
-    callbackURL: "http://localhost:3080/auth/google/callback"
+    callbackURL: CALLBACK_URL
   },
   function(accessToken, refreshToken, profile, done, req, res) {
     /* No idea what I'm doing here */
@@ -266,6 +277,7 @@ adaptdb.connectToServer(function (err) {
     console.log(err);
   }
 });
+
 /*
 setTimeout(() => {
   adaptapi.updateCourseCache(adaptdb,dbo);
@@ -275,6 +287,7 @@ setInterval(() => {
   adaptapi.updateCourseCache(adaptdb,dbo);
 },1800000);
 */
+
 /* Run server */
 
 // perform a database connection when the server starts
@@ -284,9 +297,18 @@ dbo.connectToServer(function (err) {
     process.exit();
   }
 
-  const port = process.env.PORT || 3080;
+  const port = process.env.PORT || 80;
   // start the Express server
-  app.listen(port, () => {
+  var httpServer = http.createServer(app);
+  httpServer.listen(port, () => {
     console.log(`Server is running on port: ${port}`);
   });
+  if (process.env.SSLKEY) {
+    const securePort = process.env.SECUREPORT || 443;
+    var httpsServer = https.createServer(credentials,app);
+    httpsServer.listen(securePort, () => {
+      console.log(`Server is running on port: 443`);
+    });
+  }
+
 });
