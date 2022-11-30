@@ -114,13 +114,15 @@ const getNestedActors = (arr) => {
     var combined = {};
     for (var i=0; i<arr.length;i++) {
         actors = arr[i].actors;
-        for (const [key, value] of Object.entries(actors)) {
-            if (combined[key]) {
-                combined[key].progress = getCombinedProgress(combined[key].progress,actors[key].progress);
-            } else {
-                combined[key] = value;
+        try {
+            for (const [key, value] of Object.entries(actors)) {
+                if (combined[key]) {
+                    combined[key].progress = getCombinedProgress(combined[key].progress,actors[key].progress);
+                } else {
+                    combined[key] = value;
+                }
             }
-        }
+        } catch (err) { console.log("Error getting nested actors"); }
     }
     return combined;
 }
