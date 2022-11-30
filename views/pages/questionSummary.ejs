@@ -63,7 +63,7 @@ function splitter(str, l){
 }
 
 try {
-  d3.json('//localhost:3080/api/questionSummary?activity=<%= activity %>').then(data => {
+  d3.json('/api/questionSummary?activity=<%= activity %>').then(data => {
 
     object = data.object.definition;
     responses = data.responses;
