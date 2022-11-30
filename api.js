@@ -497,7 +497,7 @@ exports.getActivityData = function(req, res) {
     resolved = false;
     promises = [];
     var filter = req.query;
-    if (!filter.activity) {
+    if (!filter.activity || filter.activity == null) {
         res.statusMessage = "You need to define an activity e.g. http://url.com/?activity=http://....";
         res.status(400).end();
         res.send();
