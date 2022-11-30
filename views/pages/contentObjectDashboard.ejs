@@ -281,7 +281,7 @@ $(document).ready( function () {
 });
 
 function loadData(activityID,trackingBlocks) {
-    var url = 'http://localhost:3080/api/activityData?activity='+ activityID + '&related_activities=true';
+    var url = '/api/activityData?activity='+ activityID + '&related_activities=true';
     console.log(url);
     d3.csv(url, function (data) {
         console.log(data);
