@@ -5,7 +5,11 @@
 <script type="text/javascript" charset="utf8" src="//cdn.datatables.net/responsive/2.3.0/js/dataTables.responsive.min.js"></script>
 <script type="text/javascript" charset="utf8" src="//cdn.datatables.net/buttons/2.2.3/js/dataTables.buttons.min.js"></script>
 <script type="text/javascript" charset="utf8" src="//cdn.datatables.net/buttons/2.2.3/js/buttons.colVis.min.js"></script>
-
+<style>
+h1 {
+    margin-top: 1em;
+}
+</style>
 <div class="container box">
     <div class="jumbotron text-primary" style="padding: 1em; line-height: 1.5em;">
         <h1 id="main-title"><span class="fa fa-lock"></span>Loading...</h1>
@@ -18,10 +22,9 @@
 </div>
 <script>
    function getBlockText(bkey,elementID) {
-    var h2 = document.createElement("h2");
+    var h2 = document.createElement("h1");
     $.get('/api/block/'+bkey, function(data) {
         if (data.displayTitle.trim() != "") {
-            console.log("GOT A TITLE");
             h2.innerHTML = data.displayTitle;
             document.getElementById(elementID).append(h2);
         }
@@ -29,23 +32,44 @@
     });
    }
    function getComponentText(ckey,elementID) {
-    var h2 = document.createElement("h2");
+    var h2 = document.createElement("h1");
     $.get('/api/component/'+ckey, function(data) {
+        console.log(data);
         h2.innerHTML = data.displayTitle;
         document.getElementById(elementID).append(h2);
         document.getElementById(elementID).insertAdjacentHTML( 'beforeend', data.body );
-        console.log(data);
         if (data.properties && !data.properties._feedback) {
             var instruction = document.createElement("p");
             instruction.innerHTML = data.properties.instruction;
             document.getElementById(elementID).append(instruction);
+            if (data.properties._completionBody) {
+                document.getElementById(elementID).insertAdjacentHTML( 'beforeend', data.properties._completionBody );
+            }
             var list = document.createElement('ul');
+            var appendList = false;
             (data.properties._items).forEach(item => {
-                var h3 = document.createElement('h3');
-                h3.innerHTML = item.title;
-                document.getElementById(elementID).append(h3);
-                document.getElementById(elementID).insertAdjacentHTML( 'beforeend', item.body );
+                if (item.title) {
+                    var h3 = document.createElement('h3');
+                    h3.innerHTML = item.title;
+                    document.getElementById(elementID).append(h3);
+                    if (item.body) {
+                       document.getElementById(elementID).insertAdjacentHTML( 'beforeend', item.body );    
+                    }
+                } else {
+                    appendList = true;
+                    var option = document.createElement('li');
+                    if (item.body) {
+                        option.innerHTML = item.body;
+                    } 
+                    if (item.text) {
+                        option.innerHTML = item.text;
+                    }
+                    list.append(option);
+                }
             }); 
+            if (appendList) {
+                document.getElementById(elementID).append(list);
+            }
         }
         if (data.properties._feedback) {
             var instruction = document.createElement("p");
