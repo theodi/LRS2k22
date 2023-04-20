@@ -380,13 +380,11 @@ function loadData(activityID,trackingBlocks) {
 
 
         var complete = ndx.dimension(function(d) {
-            if (d.passed == "http://adlnet.gov/expapi/verbs/passed") {
+            if (d["act:passed"] == "http://adlnet.gov/expapi/verbs/passed" || (d["act:completed"] != "false" && d["act:completed"] != "")) {
               return "Complete";
+            } else {
+                return "Incomplete";
             }
-            if (d.complete == "false" || d.complete == "") {
-              return "Incomplete";
-            }
-            return d.complete;
         });
         
         var completeGroup = complete.group();
@@ -415,16 +413,16 @@ function loadData(activityID,trackingBlocks) {
         .xAxis().ticks(0);
 
         var passed = ndx.dimension(function(d) {
-            if (d.passed == "http://adlnet.gov/expapi/verbs/passed") {
+            if (d["act:passed"] == "http://adlnet.gov/expapi/verbs/passed") {
               return "Passed";
             }
-            if (d.passed == "false") {
+            if (d["act:passed"] == "false") {
               return "Failed";
             }
-            if (d.passed == "") {
+            if (d["act:passed"] == "") {
               return "not attempted";
             }
-            return d.passed;
+            return d["act:passed"];
         });
 
         var passedGroup = passed.group();

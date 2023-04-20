@@ -1,3 +1,4 @@
+var ObjectId = require('mongodb').ObjectID;
 const fetch = require('node-fetch');
 var json2csv = require('json2csv'); // Library to create CSV for output
 const { Headers } = fetch;
@@ -86,6 +87,7 @@ function simplifyOutput(input) {
 }
 
 /* 
+ * NOT IN USE
  * getCombinedProgress (existingProgress, newProgress)
  *
  * When handling a paginated set of statements, you may get multiple results about an actor contain the progress object and these need combining into one.
@@ -114,15 +116,25 @@ const getNestedActors = (arr) => {
     var combined = {};
     for (var i=0; i<arr.length;i++) {
         actors = arr[i].actors;
+        //console.log(JSON.stringify(actors, null, 2));
         try {
             for (const [key, value] of Object.entries(actors)) {
-                if (combined[key]) {
-                    combined[key].progress = getCombinedProgress(combined[key].progress,actors[key].progress);
-                } else {
-                    combined[key] = value;
+                try {
+                    if (combined[key]) {
+                        //combined[key].progress = getCombinedProgress(combined[key].progress,actors[key].progress);
+                        combined[key].progress = combined[key].progress.concat(actors[key].progress);
+                    } else {
+                        combined[key] = value;
+                    }
+                } catch (err) {
+                    console.log("Error combining data");
+                    console.log(err);
                 }
             }
-        } catch (err) { console.log("Error getting nested actors"); }
+        } catch (err) { 
+            console.log("Error getting nested actors");
+            console.log(err); 
+        }
     }
     return combined;
 }
@@ -188,7 +200,13 @@ function getSessionTime(sortedList) {
  */
 function calculateSessionTimes(objects) {
     for (const [key, value] of Object.entries(objects)) {
-        var sessionTime = value.progress.sessionTime;
+        var progress = value.progress;
+        var sessionTime = [];
+        for (const [pkey, pvalue] of Object.entries(progress)) {
+                if (pvalue.id == "act:sessionTime") {
+                    sessionTime.push(pvalue);
+                }
+        }
         if (!sessionTime)
         {
             return objects;
@@ -252,9 +270,9 @@ function makeActivityDataCSVOutput(output) {
         item.name = data.name || "";
         item.mbox = data.mbox || "";
         item.timeSpentSeconds = data.timeSpentSeconds || "";
-        for (const [activityid, progressdata] of Object.entries(data.progress)) {
-            if (progressdata[0].verb != "sessionTime") {
-                item[activityid] = progressdata[0].verb;
+        for (const [key, progressdata] of Object.entries(data.progress)) {
+            if (progressdata.id != "act:sessionTime") {
+                item[progressdata.id] = progressdata.verb;
             }
         }
         csvOutput.push(item);
@@ -271,6 +289,7 @@ function makeActivityDataCSVOutput(output) {
  * NOT REUSABLE
  */
 function processActivityDataObjects(objects,activity,related_activities) {
+        //console.log(JSON.stringify(objects, null, 2));
         var output = {};
         console.log("Processing objects");
         if (!objects) {
@@ -308,33 +327,28 @@ function processActivityDataObjects(objects,activity,related_activities) {
                 }
                 if (!output.actors[actorid]) {
                     output.actors[actorid] = a.actor;
-                    progress = {};
+                    progress = [];
                 } else {
                     progress = output.actors[actorid].progress;
                 }
                 verb = a.verb.id;
+                
                 if(objectid == activity) {
                     if (verb == "http://adlnet.gov/expapi/verbs/passed" || verb == "http://adlnet.gov/expapi/verbs/failed") {
-                        console.log(verb);
-                        objectid = "passed";
+                        //console.log(verb);
+                        objectid = "act:passed";
                     } else if (verb == "http://adlnet.gov/expapi/verbs/completed") {
-                        objectid = "completed";
+                        objectid = "act:completed";
                     } else {
-                        objectid = "sessionTime";
+                        objectid = "act:sessionTime";
                     }
                 }
-                if (!progress[objectid]){
-                    progress[objectid] = [];
-                    statement = {};
-                    statement.verb = a.verb.id;
-                    statement.timestamp = a.timestamp;
-                    progress[objectid].push(statement);
-                } else {
-                    statement = {};
-                    statement.verb = a.verb.id;
-                    statement.timestamp = a.timestamp;
-                    progress[objectid].push(statement);
-                }
+                
+                statement = {};
+                statement.id = objectid;
+                statement.verb = a.verb.id;
+                statement.timestamp = a.timestamp;
+                progress.push(statement);
                 output.actors[actorid].progress = progress;
             });
         } catch (error) {
@@ -493,7 +507,7 @@ function processQuestionDataObjects(objects) {
  * SPECIFIC API function.
  * Example API call = http://localhost:3080/api/activityData?activity=https://theodi.stream.org/xapi/activities/learning-lockker-stand-alone-xapi-test-dt
  */
-exports.getActivityData = function(req, res) {
+exports.getActivityData = function(req, res, dbo) {
     resolved = false;
     promises = [];
     var filter = req.query;
@@ -511,6 +525,39 @@ exports.getActivityData = function(req, res) {
     var related_activities = filter.related_activities || true;
     var format = filter.format;
 
+    console.log("Cache query");
+    console.log("Activity: " + activity);
+    console.log("Verb:" + verb);
+    console.log("since:" + since);
+    console.log("until:" + until);
+    console.log("related_activities:" + related_activities);
+    //Get any cached data as well as update since to be the last cache update
+    
+    var key = null;
+    var dbConnect = dbo.getDb();
+    collection = "StatsCache"
+    dbConnect
+        .collection(collection)
+        .find({"activity": activity, "verb": verb, "since": since, "until": until, "related_activities": related_activities})
+        .toArray(function(err,items) {
+            console.log(collection);
+            console.log(items);
+            cachedData = items[0];
+            //console.log(JSON.stringify(cachedData, null, 4));
+            if (cachedData) {
+                since = cachedData.lastUpdate;
+                key = cachedData._id;
+                console.log("Found cached data (" + key + "), updating since to " + since);
+            }
+            console.log("Key = " + key);
+            console.log("End cache");
+        });
+    
+    //Set the new date of cache to be now
+    const d = new Date();
+    var lastUpdate = d.toISOString().split('.')[0]+"+00:00";
+
+    //Do the query
     getStatements(activity, verb, since, until, related_activities).then((objects) => {
         promises.push(new Promise((resolve,reject) => {
             resolve(processActivityDataObjects(objects,activity,related_activities));
@@ -519,16 +566,44 @@ exports.getActivityData = function(req, res) {
             if (resolved == true) {
                 clearInterval(resolve);
                 Promise.all(promises).then((values) =>{
+                    //inject the cached object to be beginning of the values array here
                     var output = {};
+                    output.activity = activity;
+                    output.verb = verb;
+                    output.since = since;
+                    output.until = until;
+                    output.related_activities = related_activities;
+                    output.lastUpdate = lastUpdate;
                     console.log("All promises returned");
-                    output.actors = calculateSessionTimes(getNestedActors(values));
-                    output.objects = getNestedObjects(values);
+                    output.actors = removeKeyURIs(calculateSessionTimes(getNestedActors(values)));
+                    output.objects = removeKeyURIs(getNestedObjects(values));
                     console.log("done processing");
-                    processReturn(req,res,filter,output,makeActivityDataCSVOutput(output)); 
+                    //Put/update <output> into cache database!
+                    if (key) {
+                        console.log("updating cache");
+                        dbConnect
+                            .collection(collection)
+                            .updateOne({_id:new ObjectId(key)},{ $set: output },{upsert: true});
+                    } else {
+                        console.log("no cache, storing");
+                        dbConnect
+                            .collection(collection)
+                            .insertOne(output, {check_keys: false});
+                    }
+                    //console.log(JSON.stringify(output, null, 2));
+                    processReturn(req,res,filter,output,makeActivityDataCSVOutput(output));
                 });
             }
         },100);
     });
+}
+
+function removeKeyURIs(objects) {
+    var output = [];
+    for (const key in objects) {
+        output.push(objects[key]);
+    }
+    return output;
 }
 
 /* 
@@ -542,7 +617,7 @@ exports.getActivityData = function(req, res) {
  * SPECIFIC API function.
  * Example API call = http://localhost:3080/api/questionSummary?activity=activity=https://learning.theodi.org/xapi/activities/mit-moral-machine-test%23/id/630f81656b4097008b2afd6f_branching_0
  */
-exports.getQuestionSummaryData = function(req, res) {
+exports.getQuestionSummaryData = function(req, res, dbo) {
     resolved = false;
     promises = [];
     var filter = req.query;

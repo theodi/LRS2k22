@@ -239,7 +239,7 @@ app.get('/user/:id', function(req,res) {
 app.get('/api/activityData', function (req, res) {
   if (!req.isAuthenticated()) { unauthorised(res); return; }
   if (req.session.profile.userType == "user") { forbidden(res); return; }
-  api.getActivityData(req, res); 
+  api.getActivityData(req, res, dbo); 
 });
 
 /* The complete adapt API */
@@ -300,7 +300,7 @@ app.post('/user/:id', function(req, res, next){
  * API requests, public methods 
  */
 app.get('/api/questionSummary', function (req, res) {
-  api.getQuestionSummaryData(req, res); 
+  api.getQuestionSummaryData(req, res, dbo); 
 });
 
 /**
