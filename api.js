@@ -151,11 +151,15 @@ const getNestedObjects = (arr) => {
     var combined = {};
     for (var i=0; i<arr.length;i++) {
         objects = arr[i].objects;
-        for (const [key, value] of Object.entries(objects)) {
-            if (combined[key]) {
-                // IGNORE and continue;
-            } else {
-                combined[key] = value;
+        if (!objects) {
+            console.log("Empty data object");   
+        } else {
+            for (const [key, value] of Object.entries(objects)) {
+                if (combined[key]) {
+                    // IGNORE and continue;
+                } else {
+                    combined[key] = value;
+                }
             }
         }
     }
@@ -508,8 +512,6 @@ function processQuestionDataObjects(objects) {
  * Example API call = http://localhost:3080/api/activityData?activity=https://theodi.stream.org/xapi/activities/learning-lockker-stand-alone-xapi-test-dt
  */
 exports.getActivityData = function(req, res, dbo) {
-    resolved = false;
-    promises = [];
     var filter = req.query;
     if (!filter.activity || filter.activity == null) {
         res.statusMessage = "You need to define an activity e.g. http://url.com/?activity=http://....";
@@ -526,7 +528,7 @@ exports.getActivityData = function(req, res, dbo) {
     var format = filter.format;
 
     console.log("Cache query");
-    console.log("Activity: " + activity);
+    console.log("Activity:" + activity);
     console.log("Verb:" + verb);
     console.log("since:" + since);
     console.log("until:" + until);
@@ -540,25 +542,49 @@ exports.getActivityData = function(req, res, dbo) {
         .collection(collection)
         .find({"activity": activity, "verb": verb, "since": since, "until": until, "related_activities": related_activities})
         .toArray(function(err,items) {
-            console.log(collection);
-            console.log(items);
             cachedData = items[0];
-            //console.log(JSON.stringify(cachedData, null, 4));
             if (cachedData) {
-                since = cachedData.lastUpdate;
-                key = cachedData._id;
-                console.log("Found cached data (" + key + "), updating since to " + since);
+                var newActors = {};
+                var newObjects = {};
+                for(var i=0;i<cachedData.actors.length;i++) {
+                    newActors[cachedData.actors[i].name] = cachedData.actors[i];
+                }
+                for(var o=0;o<cachedData.objects.length;o++) {
+                    newObjects[cachedData.objects[o].id] = cachedData.objects[i];
+                }
+                cachedData.actors = newActors;
+                cachedData.objects = newObjects;
             }
-            console.log("Key = " + key);
-            console.log("End cache");
-        });
+            updateFromLearningLocker(req,res,filter,cachedData,dbConnect);
+    });
+}
     
+function updateFromLearningLocker(req,res,filter,cachedData,dbConnect) {
+    var activity = filter.activity;
+    var verb = filter.verb || null;
+    var since = filter.since || null;
+    var until = filter.until || null;
+    var related_activities = filter.related_activities || true;
+    var format = filter.format;
+    var collection = "StatsCache";
+
+    var key;
+    var since;
+    resolved = false;
+    promises = [];
+
+    if (cachedData) {
+        since = cachedData.lastUpdate;
+        key = cachedData._id;
+        console.log("Found cached data (" + key + "), updating since to " + since);
+    }
     //Set the new date of cache to be now
     const d = new Date();
-    var lastUpdate = d.toISOString().split('.')[0]+"+00:00";
-
+    var lastUpdate = d.toISOString();
+    
     //Do the query
     getStatements(activity, verb, since, until, related_activities).then((objects) => {
+        console.log("Filter since = " + filter.since);
         promises.push(new Promise((resolve,reject) => {
             resolve(processActivityDataObjects(objects,activity,related_activities));
         }));
@@ -567,10 +593,14 @@ exports.getActivityData = function(req, res, dbo) {
                 clearInterval(resolve);
                 Promise.all(promises).then((values) =>{
                     //inject the cached object to be beginning of the values array here
+                    if (cachedData) {
+                        values.splice(0,0,cachedData);
+                    }
+                    console.log(JSON.stringify(values, null, 2));
                     var output = {};
                     output.activity = activity;
                     output.verb = verb;
-                    output.since = since;
+                    output.since = filter.since;
                     output.until = until;
                     output.related_activities = related_activities;
                     output.lastUpdate = lastUpdate;

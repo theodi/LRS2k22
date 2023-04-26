@@ -58,8 +58,12 @@ function removeHTML(str){
 }
 
 function processData(dbo,data,parent_id,collection,path) {
+	if (parent_id == "6438250bb38aaf6b93dd83a7") {
+		//console.log("in processData for parent 6438250bb38aaf6b93dd83a7 with collection" + collection + " and data:");
+		//console.log(JSON.stringify(data));
+	}
 	var local = {};
-	local.length = data.length;
+	//local.length = data.length;
 	var paths = path.toString().split("_");
 	if (collection == "articles") {
 		output["courses"][paths[0]]["contentobjects"][paths[1]]["articleCount"] = data.length;
@@ -76,6 +80,7 @@ function processData(dbo,data,parent_id,collection,path) {
 		local[id].wordCount = 0;
 		local[id].title = data[i].title;
 		local[id].id = id;
+		if (data[i]._sortOrder) { local[id].sortOrder = data[i]._sortOrder; }
 		local[id].displayTitle = data[i].displayTitle;
 		local[id].description = data[i].body;
 		local[id].wordCount += removeHTML(data[i].displayTitle).split(" ").length + removeHTML(data[i].body).split(" ").length;
@@ -91,7 +96,12 @@ function processData(dbo,data,parent_id,collection,path) {
 						local[id].wordCount += removeHTML(items[ci].text).split(" ").length;
 					}
 				}
-			} catch(err) {}
+			} catch(err) {
+				if (parent_id == "6438250bb38aaf6b93dd83a7") {
+					console.log("error on parent: " + parent_id);
+					console.log(err);
+				}
+			}
 			try {
 				if (data[i].properties._feedback) {
 					local[id].isQuestion = true;
@@ -102,7 +112,12 @@ function processData(dbo,data,parent_id,collection,path) {
 					local[id].wordCount += removeHTML(data[i].properties._feedback.correct).split(" ").length;
 					local[id].wordCount += removeHTML(data[i].properties._feedback._incorrect.final).split(" ").length;
 				}
-			} catch(err) {}
+			} catch(err) {
+				if (parent_id == "6438250bb38aaf6b93dd83a7") {
+					console.log("error on parent: " + parent_id);
+					console.log(err);
+				}
+			}
 		}
 		
 		if (paths.length > 1) {
@@ -120,6 +135,8 @@ function processData(dbo,data,parent_id,collection,path) {
 			try {
 				if (data[i]._extensions._assessment._isEnabled) {
 					output["courses"][paths[0]]["contentobjects"][paths[1]]["assessmentCount"] += 1;
+					local[id].assessmentID = data[i]._extensions._assessment._id;
+					local[id].assessmentWeight = data[i]._extensions._assessment._assessmentWeight;
 				}
 			} catch(err) {}
 			promiseCount = promiseCount + 1;
@@ -204,12 +221,19 @@ function setPromiseInterval2(req,res,id) {
 }
 
 function getChildren(dbo,parent_id,collection,path) {
+	if (parent_id == "6438250bb38aaf6b93dd83a7") {
+		//console.log("Getting children for block 6438250bb38aaf6b93dd83a7");
+	}
 	promiseCount = promiseCount + 1;
 	var dbConnect = dbo.getDb();
 	dbConnect
 		.collection(collection)
          .find({"_parentId":new ObjectId(parent_id)})
         .toArray(function(err,data) {
+        	if (parent_id == "6438250bb38aaf6b93dd83a7") {
+        		//console.log("data for 6438250bb38aaf6b93dd83a7");
+        		//console.log(JSON.stringify(data));
+        	}
         	promises.push(new Promise((resolve,reject) => {
             	resolve(processData(dbo,data,parent_id,collection,path));
         	}));
@@ -218,8 +242,8 @@ function getChildren(dbo,parent_id,collection,path) {
 
 function updateCache(dbo) {
 	var resolve = setInterval(() => {
-		console.log("Updating database");
 		Promise.all(promises).then((values) => {
+			console.log("Updating database");
 			clearInterval(resolve);
 			courses = output["courses"];
 			for (const [key, value] of Object.entries(courses)) {
@@ -229,7 +253,7 @@ function updateCache(dbo) {
       				.updateOne({_id:new ObjectId(key)},{ $set: value },{upsert: true});
 			}
 		})
-	},20000);
+	},60000);
 }
 
 function getConfig(dbo,id) {

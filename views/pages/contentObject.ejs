@@ -151,6 +151,7 @@
                 addRowToTable("xapi-factbox","Dashboard","View XAPI Dashboard",dashboardLink);
             }
             var count = 1;
+            var totalAssessmentWeight = 0;
             document.getElementById("main-title").innerHTML = data.title;
             addRowToTable("factbox","ID",data.id);
             addRowToTable("factbox","# articles",data.articleCount);
@@ -159,12 +160,44 @@
             addRowToTable("factbox","# questions",data.questionCount);
             addRowToTable("factbox","# words",data.wordCount,"/course/"+data.id+"/transcript");
             document.getElementById("description").innerHTML = data.description;
-            for (const [key, value] of Object.entries(data.articles)) {
-                if (typeof value == "object") {
-                    if (value.title.trim() != "") {
-                        //addTitleToList("section_titles",value.title.trim());
+            //Sort the articles here
+            delete(data.articles.length);
+            var articles = Object.keys(data.articles).map((key) => data.articles[key]);
+            articles = articles.sort((a, b) => {
+                if (a.sortOrder < b.sortOrder) {
+                    return -1;
+                }
+            });
+            for (var i=0;i<articles.length;i++) {
+                var article = articles[i];
+                var local = {};
+                local.type = "article";
+                local.title = article.title;
+                if (article.assessmentID) {
+                    totalAssessmentWeight += article.assessmentWeight;
+                    local.title += " <br/><b>AssessmentID</b>: " + article.assessmentID + "<br/><b>Weight</b>: " + article.assessmentWeight;
+                }
+                local.isQuestion = false;
+                local.activityID = activityID;
+                local.id = article.id;
+                local.wordCount = "-";
+                local.count = "Article-" + i;
+                addDataToTable("section_table_body",local);
+                blocks = article.blocks;
+                delete(blocks.length);
+                var blocks = Object.keys(blocks).map((key) => blocks[key]);
+                blocks = blocks.sort((a, b) => {
+                    if (a.sortOrder < b.sortOrder) {
+                        return -1;
                     }
-                    for (const [bkey, bvalue] of Object.entries(data.articles[key].blocks)) {
+                });
+//                if (typeof value == "object") {
+//                    if (value.title.trim() != "") {
+                        //addTitleToList("section_titles",value.title.trim());
+//                    }
+                    //for (const [bkey, bvalue] of Object.entries(article.blocks)) {
+                    for (var b=0;b<blocks.length;b++) {
+                        bvalue = blocks[b];
                         var local = {};
                         local.type = "";
                         local.title = "";
@@ -175,7 +208,7 @@
                             if (bvalue.title.trim() != "" && bvalue.title.trim().toLowerCase() != "block title") {
                                 local.title = bvalue.title.trim();
                             }
-                            for (const [ckey, cvalue] of Object.entries(data.articles[key].blocks[bkey].components)) {
+                            for (const [ckey, cvalue] of Object.entries(bvalue.components)) {
                                 if (typeof cvalue == "object") {
                                     local.wordCount += cvalue.wordCount;
                                     if (local.type != "" && local.type.trim() == "graphic" && cvalue.type.trim() != "graphic") {
@@ -204,8 +237,9 @@
                             count += 1;
                         }
                     }   
-                }
+                //}
             }
+            addRowToTable("factbox","total assessmentWeight",totalAssessmentWeight);
         });
     });
 </script>
