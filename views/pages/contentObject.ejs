@@ -183,9 +183,9 @@
                 var local = {};
                 local.type = "article";
                 local.title = article.title;
-                if (article.assessmentID) {
-                    totalAssessmentWeight += article.assessmentWeight;
-                    local.title += " <br/><b>AssessmentID</b>: " + article.assessmentID + "<br/><b>Weight</b>: " + article.assessmentWeight;
+                if (article.assessment) {
+                    totalAssessmentWeight += article.assessment._assessmentWeight;
+                    local.title += " <br/><b>AssessmentID</b>: " + article.assessment._id + "<br/><b>Weight</b>: " + article.assessment._assessmentWeight + "<br/><b>Attempts allowed:</b> " + article.assessment._attempts;
                 }
                 local.isQuestion = false;
                 local.activityID = activityID;

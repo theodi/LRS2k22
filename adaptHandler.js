@@ -134,9 +134,8 @@ function processData(dbo,data,parent_id,collection,path) {
 			}
 			try {
 				if (data[i]._extensions._assessment._isEnabled) {
+					local[id].assessment = data[i]._extensions._assessment;
 					output["courses"][paths[0]]["contentobjects"][paths[1]]["assessmentCount"] += 1;
-					local[id].assessmentID = data[i]._extensions._assessment._id;
-					local[id].assessmentWeight = data[i]._extensions._assessment._assessmentWeight;
 				}
 			} catch(err) {}
 			promiseCount = promiseCount + 1;
