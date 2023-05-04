@@ -409,31 +409,80 @@ const combineQuestionSummaryResults = (arr) => {
  *
  * NOT REUSABLE as each CSV has a different structure
  */
-function makeQuestionDataCSVOutput(output) {
-    var choices = output.object.definition.choices;
-    if (!choices) {
-        //FIXME A MATCHING COMPONENT
+function makeQuestionDataCSVOutput(data) {
+    var interactionType = data.object.definition.interactionType;
+    var responses = data.result.response.split("[,]");
+    var output = [];
+
+    console.log("Making CSV output for " + interactionType);
+
+    if (interactionType === "matching") {
+        var sources = data.object.definition.source;
+        var targets = data.object.definition.target;
+
+        var rotated_sources = {};
+        var rotated_targets = {};
+
+        for (var i = 0; i < sources.length; i++) {
+            rotated_sources[sources[i].id] = sources[i].description.en;
+        }
+
+        for (var i = 0; i < targets.length; i++) {
+            rotated_targets[targets[i].id] = targets[i].description.en;
+        }
+
+        var response_counts = {};
+
+        for (var i = 0; i < responses.length; i++) {
+            var [sourceId, targetId] = responses[i].split("[.]");
+            var answer = rotated_sources[sourceId] + ": " + rotated_targets[targetId];
+            if (answer in response_counts) {
+                response_counts[answer]++;
+            } else {
+                response_counts[answer] = 1;
+            }
+        }
+
+        for (var answer in response_counts) {
+            output.push({
+                Answer: answer,
+                Count: response_counts[answer]
+            });
+        }
+    } else if (interactionType === "choice") {
+        var choices = data.object.definition.choices;
+        var rotated_choices = {};
+
+        for (var i = 0; i < choices.length; i++) {
+            rotated_choices[choices[i].id] = choices[i].description.en;
+        }
+
+        var response_counts = {};
+
+        for (var i = 0; i < responses.length; i++) {
+            var choiceId = responses[i];
+            var answer = rotated_choices[choiceId];
+            if (answer in response_counts) {
+                response_counts[answer]++;
+            } else {
+                response_counts[answer] = 1;
+            }
+        }
+
+        for (var answer in response_counts) {
+            output.push({
+                Answer: answer,
+                Count: response_counts[answer]
+            });
+        }
+    } else {
+        console.error("Unsupported interaction type:", interactionType);
         return [];
     }
-    var rotated_choices = {};
 
-    var responses = output.responses;
-
-    var output = [];
-    
-    for (i=0;i<choices.length;i++) {
-        rotated_choices[choices[i].id] = choices[i].description.en;
-    }
-
-    for (i=0;i<responses.length;i++) {
-        id = responses[i].id;
-        var local = {};
-        local.Answer = rotated_choices[id];
-        local.Count = responses[i].count;
-        output.push(local);
-    }
     return output;
 }
+
 
 /*
  * processQuestionDataObjects
@@ -447,13 +496,13 @@ function processQuestionDataObjects(objects) {
     var statements = objects.statements;
 
     console.log("Processing objects");
-    if (!objects || !statements[0])  {
+    if (!objects || !statements[0]) {
         return {};
     }
 
     if (objects.more) {
         console.log("Adding promise to the array");
-        promises.push(new Promise((resolve,reject) => {
+        promises.push(new Promise((resolve, reject) => {
             execQuery(objects.more).then((objects) => {
                 resolve(processQuestionDataObjects(objects));
             });
@@ -461,7 +510,7 @@ function processQuestionDataObjects(objects) {
     } else {
         resolved = true;
     }
-    
+
     var output = {};
 
     output.object = statements[0].object;
@@ -488,16 +537,33 @@ function processQuestionDataObjects(objects) {
         output.success = "unknown";
         output.completion = "unknown";
     }
-    try {
-        statements[0].object.definition.choices.map((a) => {
-            let jsonres = {};
-            jsonres.id = a.id;
-            jsonres.count = responseArray[a.id] || 0;
-            output.responses.push(jsonres);
-        });
-    } catch (error) {
-        // Do nothing
+
+    var interactionType = statements[0].object.definition.interactionType;
+
+    if (interactionType === "choice") {
+        try {
+            statements[0].object.definition.choices.map((a) => {
+                let jsonres = {};
+                jsonres.id = a.id;
+                jsonres.count = responseArray[a.id] || 0;
+                output.responses.push(jsonres);
+            });
+        } catch (error) {
+            // Do nothing
+        }
+    } else if (interactionType === "matching") {
+        try {
+            responseArray.forEach((count, response) => {
+                let jsonres = {};
+                jsonres.id = response;
+                jsonres.count = count;
+                output.responses.push(jsonres);
+            });
+        } catch (error) {
+            // Do nothing
+        }
     }
+
     return output;
 }
 
