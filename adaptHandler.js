@@ -58,10 +58,12 @@ function removeHTML(str){
 }
 
 function processData(dbo,data,parent_id,collection,path) {
-	if (parent_id == "6438250bb38aaf6b93dd83a7") {
-		//console.log("in processData for parent 6438250bb38aaf6b93dd83a7 with collection" + collection + " and data:");
-		//console.log(JSON.stringify(data));
+	/*
+	if (parent_id == "64761c44b38aaf6b93dd9074") {
+		console.log("in processData for parent 64761c44b38aaf6b93dd9074 with collection" + collection + " and data:");
+		console.log(JSON.stringify(data));
 	}
+	*/
 	var local = {};
 	//local.length = data.length;
 	var paths = path.toString().split("_");
@@ -240,19 +242,32 @@ function getChildren(dbo,parent_id,collection,path) {
 }
 
 function updateCache(dbo) {
-	var resolve = setInterval(() => {
-		Promise.all(promises).then((values) => {
-			console.log("Updating database");
-			clearInterval(resolve);
-			courses = output["courses"];
-			for (const [key, value] of Object.entries(courses)) {
-				var dbConnect = dbo.getDb();
-				dbConnect
-      				.collection("AdaptCourseCache")
-      				.updateOne({_id:new ObjectId(key)},{ $set: value },{upsert: true});
-			}
-		})
-	},60000);
+  var resolve = setInterval(() => {
+    Promise.all(promises).then((values) => {
+      console.log("Updating database");
+      clearInterval(resolve);
+      
+      // Delete all documents in the collection
+      var dbConnect = dbo.getDb();
+      dbConnect.collection("AdaptCourseCache").deleteMany({});
+      
+      courses = output["courses"];
+      var insertPromises = [];
+      
+      // Insert new documents
+      for (const [key, value] of Object.entries(courses)) {
+        insertPromises.push(
+          dbConnect.collection("AdaptCourseCache").insertOne({_id: new ObjectId(key), ...value})
+        );
+      }
+      
+      Promise.all(insertPromises).then(() => {
+        console.log("Documents inserted successfully");
+      }).catch((error) => {
+        console.error("Error inserting documents:", error);
+      });
+    });
+  }, 120000);
 }
 
 function getConfig(dbo,id) {
