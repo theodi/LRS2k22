@@ -122,8 +122,10 @@
    $(document).ready( function () {
         var activityID = null;
         var isXAPI = false;
+        var courseId = "";
         $.get('/api/contentObject/<%= id %>/config', function(data) {
-            addRowToTable("course-factbox","ID",data._id);
+            addRowToTable("course-factbox","ID",data._courseId);
+            courseId = data._courseId;
             if (data._themePreset) {
                 addRowToTable("course-factbox","Theme",data._themePreset.parentTheme);
                 addRowToTable("course-factbox","Theme Preset",data._themePreset.displayName);
@@ -163,7 +165,8 @@
             var count = 1;
             var totalAssessmentWeight = 0;
             document.getElementById("main-title").innerHTML = data.title;
-            addRowToTable("factbox","ID",data.id);
+            var aatEditLink = "<%= aatBase %>#editor/"+courseId+"/page/"+data.id;
+            addRowToTable("factbox","ID",data.id,aatEditLink);
             addRowToTable("factbox","# articles",data.articleCount);
             addRowToTable("factbox","# blocks",data.blockCount);
             addRowToTable("factbox","# asessments",data.assessmentCount);

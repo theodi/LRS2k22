@@ -267,7 +267,7 @@ function updateCache(dbo) {
         console.error("Error inserting documents:", error);
       });
     });
-  }, 120000);
+  }, 60000);
 }
 
 function getConfig(dbo,id) {

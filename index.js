@@ -15,6 +15,7 @@ var api = require('./api');
 var adaptapi = require('./adaptHandler');
 var userHandler = require('./userHandler');
 const adaptdb = require("./db/adapt-aat");
+const aatBase = process.env.AAT_BASE;
 
 if (process.env.SSLKEY) {
   var privateKey  = fs.readFileSync(process.env.SSLKEY, 'utf8');
@@ -201,6 +202,7 @@ app.get('/course/:id', function(req, res) {
   if (req.session.profile.userType == "user") { forbidden(res); return; }
   res.locals.pageTitle = "Course" + req.params.id;
   res.locals.id = req.params.id;
+  res.locals.aatBase = aatBase;
   res.render('pages/contentObject');
 });
 
