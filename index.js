@@ -10,6 +10,7 @@ const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const dbo = require("./db/conn");
+const { ObjectId } = require("mongodb");
 const session = require('express-session');
 var api = require('./api');
 var adaptapi = require('./adaptHandler');
@@ -33,7 +34,7 @@ app.set('view engine', 'ejs');
 app.use(session({
   resave: false,
   saveUninitialized: true,
-  secret: 'SECRET' 
+  secret: 'SECRET'
 }));
 
 //Put the user object in a global veriable so it can be accessed from templates
@@ -56,7 +57,7 @@ app.use(express.json());
 app.get('/', function(req, res) {
   if (req.session.passport) {
     res.redirect("/profile");
-  } else { 
+  } else {
     res.locals.pageTitle ="ODI Template (NodeJS + Express + OAuth)";
     res.render('pages/auth');
   }
@@ -89,7 +90,7 @@ passport.deserializeUser(function(obj, cb) {
 });
 
 /*  Google AUTH  */
- 
+
 const GoogleStrategy = require('passport-google-oauth').OAuth2Strategy;
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
@@ -120,11 +121,11 @@ passport.use(new GoogleStrategy({
         });
   }
 ));
- 
-app.get('/auth/google', 
+
+app.get('/auth/google',
   passport.authenticate('google', { scope : ['profile', 'email'] }));
- 
-app.get('/auth/google/callback', 
+
+app.get('/auth/google/callback',
   passport.authenticate('google', { failureRedirect: '/error' }),
   function(req, res) {
     // Successful authentication, redirect success.
@@ -158,6 +159,65 @@ app.get('/questionSummary', function(req, res) {
   res.locals.pageTitle = "Question insights";
   res.locals.activity = encodeURIComponent(req.query.activity);
   res.render('pages/questionSummary');
+});
+
+app.post('/interactions', express.json(), async function(req, res){
+  // Extract relevant data from the request body
+  const { _userAnswer, _userFeedback, _component } = req.body;
+  // Check if the required fields are present in the request body
+  if (!_userAnswer || !_userFeedback || !_component) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  try {
+    var dbConnect = dbo.getDb();
+
+    const newInteraction = {
+      _userAnswer,
+      _userFeedback,
+      _component,
+    };
+
+    const interactionsCollection = dbConnect.collection('Interactions');
+    // Insert the new interaction into the "Interactions" collection
+    const result = await interactionsCollection.insertOne(newInteraction);
+
+    // Return the ID of the created object to the user
+    res.status(201).json({ id: result.insertedId });
+  } catch (err) {
+    // Handle any errors that occur during the database operation
+    console.error('Error saving interaction:', err);
+    res.status(500).json({ error: 'Error saving interaction' });
+  }
+
+});
+
+app.get('/interactions/:id', async function(req, res) {
+  const interactionId = req.params.id;
+
+  // Check if the provided ID is a valid ObjectId
+  if (!ObjectId.isValid(interactionId)) {
+    return res.status(400).json({ error: 'Invalid ID format' });
+  }
+
+  try {
+
+    var dbConnect = dbo.getDb();
+    const interactionsCollection = dbConnect.collection('Interactions');
+
+    // Find the interaction by its ID
+    const interaction = await interactionsCollection.findOne({ _id: new ObjectId(interactionId) });
+
+    if (interaction) {
+      res.status(200).json(interaction);
+    } else {
+      res.status(404).json({ error: 'Interaction not found' });
+    }
+  } catch(err) {
+    // Handle any errors that occur during the database operation
+    console.error('Error fetching interaction:', err);
+    res.status(500).json({ error: 'Error fetching interaction' });
+  }
 });
 
 /* Require user to be logged in */
@@ -236,12 +296,12 @@ app.get('/user/:id', function(req,res) {
   res.render('pages/editUserProfile', {userid: req.params.id, msg: ""});
 });
 
-/* API requests private methods */ 
+/* API requests private methods */
 
 app.get('/api/activityData', function (req, res) {
   if (!req.isAuthenticated()) { unauthorised(res); return; }
   if (req.session.profile.userType == "user") { forbidden(res); return; }
-  api.getActivityData(req, res, dbo); 
+  api.getActivityData(req, res, dbo);
 });
 
 /* The complete adapt API */
@@ -249,7 +309,7 @@ app.get('/api/activityData', function (req, res) {
 /**
  * api/courses
  * List all courses
- */ 
+ */
 app.get('/api/courses', function(req,res) {
   if (!req.isAuthenticated() && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
   if (req.session.profile.userType == "user") { forbidden(res); return; }
@@ -299,10 +359,10 @@ app.post('/user/:id', function(req, res, next){
 
 
 /*
- * API requests, public methods 
+ * API requests, public methods
  */
 app.get('/api/questionSummary', function (req, res) {
-  api.getQuestionSummaryData(req, res, dbo); 
+  api.getQuestionSummaryData(req, res, dbo);
 });
 
 /**
