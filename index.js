@@ -163,19 +163,23 @@ app.get('/questionSummary', function(req, res) {
 
 app.post('/interactions', express.json(), async function(req, res){
   // Extract relevant data from the request body
-  const { _userAnswer, _userFeedback, _component } = req.body;
+  const { studentId, _component, _componentId, _userAnswer, _userFeedback } = req.body;
   // Check if the required fields are present in the request body
-  if (!_userAnswer || !_userFeedback || !_component) {
+  if (!_userAnswer || !_userFeedback || !_component || !studentId || !_componentId) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
+  const timestamp = new Date().getTime();
 
   try {
     var dbConnect = dbo.getDb();
 
     const newInteraction = {
-      _userAnswer,
-      _userFeedback,
+      studentId,
+      timestamp,
       _component,
+      _componentId,
+      _userAnswer,
+      _userFeedback
     };
 
     const interactionsCollection = dbConnect.collection('Interactions');
@@ -191,6 +195,37 @@ app.post('/interactions', express.json(), async function(req, res){
   }
 
 });
+
+// GET /interactions endpoint with query parameters
+app.get('/interactions', async (req, res) => {
+  try {
+    const studentId = req.query.studentId;
+    const _componentId = req.query.componentId;
+
+    if (!studentId || !_componentId) {
+      return res.status(400).json({ error: 'Both studentId and componentId query parameters are required.' });
+    }
+
+    var dbConnect = dbo.getDb();
+    const interactionsCollection = dbConnect.collection('Interactions');
+    // Query the database for matching documents and sort by timestamp in descending order (most recent first)
+    const query = { studentId, _componentId };
+    const sortOptions = { timestamp: -1 };
+    const result = await interactionsCollection.find(query).sort(sortOptions).limit(1).toArray();
+
+    if (result.length === 0) {
+      return res.status(404).json({ error: 'No matching interaction found.' });
+    }
+
+    // Return the most recent interaction to the user
+    res.status(200).json(result[0]);
+  } catch (err) {
+    // Handle any errors that occur during the database operation
+    console.error('Error fetching interaction:', err);
+    res.status(500).json({ error: 'Error fetching interaction' });
+  }
+});
+
 
 app.get('/interactions/:id', async function(req, res) {
   const interactionId = req.params.id;
