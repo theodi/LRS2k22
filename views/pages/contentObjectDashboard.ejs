@@ -73,11 +73,11 @@
             </subsection>
             <h2>Block completions</h2>
             <section id="blocks" style="margin: 0px;">
-            </section>              
+            </section>
 
             <h2>Question Answers</h2>
             <section id="questions">
-            </section>              
+            </section>
         </div>
     </div>
 </div>
@@ -103,7 +103,7 @@ function isInt(n){
     return Number(n) === n && n % 1 === 0;
 }
 
-function removeHTML(str){ 
+function removeHTML(str){
     var tmp = document.createElement("DIV");
     tmp.innerHTML = str;
     return tmp.textContent || tmp.innerText || "";
@@ -130,13 +130,13 @@ function addTrackingBlock(id,data) {
 
     var title = document.createElement('h3')
     title.innerHTML = data.title;
-    
+
     var number = document.createElement('p')
     number.innerHTML = data.blockID;
 
     text.append(title);
     text.append(number);
-    
+
     var icon = document.createElement('div');
     icon.setAttribute('class','correct_block');
     var img = document.createElement('img');
@@ -158,7 +158,7 @@ function addTrackingBlock(id,data) {
     var labels = document.createElement("div");
     labels.setAttribute('class','chart_labels');
     labels.setAttribute('id','labels_'+data.blockID);
-    
+
     var line = document.createElement('div');
     line.setAttribute('id','line_'+data.blockID);
 
@@ -272,7 +272,7 @@ $(document).ready( function () {
                         addTrackingBlock("blocks",local);
                         count += 1;
                     }
-                }   
+                }
             }
         }
         //loadData(activityID+"%23/id/"+data.id,trackingBlocks);
@@ -386,7 +386,7 @@ function loadData(activityID,trackingBlocks) {
                 return "Incomplete";
             }
         });
-        
+
         var completeGroup = complete.group();
         completeGroup = remove_empty_bins(completeGroup);
 
@@ -419,8 +419,11 @@ function loadData(activityID,trackingBlocks) {
             if (d["act:passed"] == "false") {
               return "Failed";
             }
+            if (d["act:passed"] == "http://adlnet.gov/expapi/verbs/failed" ) {
+              return "Failed";
+            }
             if (d["act:passed"] == "") {
-              return "not attempted";
+              return "Not attempted";
             }
             return d["act:passed"];
         });
@@ -635,7 +638,7 @@ function loadData(activityID,trackingBlocks) {
             number = complete.top(Number.POSITIVE_INFINITY).length;
             document.getElementById('total_records').innerHTML = number;
         }
-        setInterval(function() { count(); },1000); 
+        setInterval(function() { count(); },1000);
 
         dc.renderAll();
     });

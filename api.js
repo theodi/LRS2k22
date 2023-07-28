@@ -8,10 +8,10 @@ promises = [];
 
 /*
  * execQuery (query)
- * 
+ *
  * Take a raw query and exec it against the Learning Locker Endpoint
  * Writen to support the use of pagination using MORE
- * 
+ *
  * REUSABLE
  */
 const execQuery = async (query) => {
@@ -41,7 +41,7 @@ const execQuery = async (query) => {
             );
             return await res.json();
         }
-        // catch error and return 404 to user 
+        // catch error and return 404 to user
         catch (error) {
             return {};
         }
@@ -51,10 +51,10 @@ const execQuery = async (query) => {
 
 /*
  * getStatements
- * 
+ *
  * Function to get the results of the first query
  * Subsequenct calls to execQuery should come from the pagination (MORE) returned in the result
- * 
+ *
  * REUSABLE
  */
 const getStatements = async (activity, verb, since, until, related_activities) => {
@@ -86,12 +86,12 @@ function simplifyOutput(input) {
     return array;
 }
 
-/* 
+/*
  * NOT IN USE
  * getCombinedProgress (existingProgress, newProgress)
  *
  * When handling a paginated set of statements, you may get multiple results about an actor contain the progress object and these need combining into one.
- * This is particularly the case for sessionTime when the session will be launched, initialised etc etc etc lots of times. 
+ * This is particularly the case for sessionTime when the session will be launched, initialised etc etc etc lots of times.
  * To work out total session time you need all of these statements.
  *
  * REUSABLE
@@ -100,23 +100,25 @@ function getCombinedProgress(eProg,nProg) {
     for (const [key, value] of Object.entries(eProg)) {
         if (nProg[key]) {
             eProg[key] = [...eProg[key],...nProg[key]];
-        } 
+        }
     }
     return {...nProg,...eProg};
 }
 
-/* 
- * getNestedActors 
+/*
+ * getNestedActors
  *
  * Another function to work with multiple pages of actor results to combine the data together
  *
  * REUSABLE when you have actors as the primary object
  */
 const getNestedActors = (arr) => {
+    if (arr.length === 1) {
+        return arr[0].actors;
+    }
     var combined = {};
     for (var i=0; i<arr.length;i++) {
         actors = arr[i].actors;
-        //console.log(JSON.stringify(actors, null, 2));
         try {
             for (const [key, value] of Object.entries(actors)) {
                 try {
@@ -131,28 +133,31 @@ const getNestedActors = (arr) => {
                     console.log(err);
                 }
             }
-        } catch (err) { 
-            console.log("Error getting nested actors");
-            console.log(err); 
+        } catch (err) {
+            console.log("Error getting nested actors, probably undefined");
+            console.log(err);
         }
     }
     return combined;
 }
 
-/* 
- * getNestedObjects 
- * 
- * When working with multiple pages of results, we only want to return one set of objects. 
+/*
+ * getNestedObjects
+ *
+ * When working with multiple pages of results, we only want to return one set of objects.
  * This function ensure there is one (and only one) copy of each object in the returned data.
- * 
+ *
  * REUSABLE
  */
 const getNestedObjects = (arr) => {
+    if (arr.length === 1) {
+        return arr[0].objects;
+    }
     var combined = {};
     for (var i=0; i<arr.length;i++) {
         objects = arr[i].objects;
         if (!objects) {
-            console.log("Empty data object");   
+            console.log("Empty data object");
         } else {
             for (const [key, value] of Object.entries(objects)) {
                 if (combined[key]) {
@@ -166,9 +171,9 @@ const getNestedObjects = (arr) => {
     return combined;
 }
 
-/* 
+/*
  * getSessionTime (sortedList)
- * 
+ *
  * Takes a sorted list of session events and works out the total time spent on an activity
  * If the session is currently open then this time won't be included.
  *
@@ -197,7 +202,7 @@ function getSessionTime(sortedList) {
 
 /*
  * calculateSessionTimes(objects)
- * 
+ *
  * Takes a set of actor objects (with progress) and adds a new key to the returned data (timeSpentSeconds) that represents the total time spent on the activity
  *
  * REUSABLE
@@ -223,16 +228,16 @@ function calculateSessionTimes(objects) {
     return objects;
 }
 
-/* 
+/*
  * processReturn
- * 
+ *
  * Outputs the data in the desired format
  * NOTE: HTML should be removed from here and handled outside of the API handler
  *
  * REUSABLE
  */
 function processReturn(req,res,filter,output,csvOutput) {
-    
+
     // Work out what the client asked for, the ".ext" specified always overrides content negotiation
     ext = req.params["ext"] || filter.format;
 
@@ -286,7 +291,7 @@ function makeActivityDataCSVOutput(output) {
 
 /*
  * processActivityDataObjects
- * 
+ *
  * Specific function to build the data required for the getActivityData API call
  * This function is required to call itself to process additional pages
  *
@@ -309,7 +314,7 @@ function processActivityDataObjects(objects,activity,related_activities) {
         } else {
             resolved = true;
         }
-        
+
         var statements = objects.statements;
         if (statements.length < 1 || !statements) {
             return {};
@@ -327,7 +332,7 @@ function processActivityDataObjects(objects,activity,related_activities) {
                 actorid = a.actor.account.name;
                 objectid = a.object.id;
                 if (related_activities && !output.objects[objectid]) {
-                    output.objects[objectid] = a.object;    
+                    output.objects[objectid] = a.object;
                 }
                 if (!output.actors[actorid]) {
                     output.actors[actorid] = a.actor;
@@ -336,7 +341,7 @@ function processActivityDataObjects(objects,activity,related_activities) {
                     progress = output.actors[actorid].progress;
                 }
                 verb = a.verb.id;
-                
+
                 if(objectid == activity) {
                     if (verb == "http://adlnet.gov/expapi/verbs/passed" || verb == "http://adlnet.gov/expapi/verbs/failed") {
                         //console.log(verb);
@@ -347,7 +352,7 @@ function processActivityDataObjects(objects,activity,related_activities) {
                         objectid = "act:sessionTime";
                     }
                 }
-                
+
                 statement = {};
                 statement.id = objectid;
                 statement.verb = a.verb.id;
@@ -363,12 +368,12 @@ function processActivityDataObjects(objects,activity,related_activities) {
         return output;
 }
 
-/* 
- * combineQuestionSummaryResults 
- * 
- * When working with multiple pages of results, we only want to return one set of objects. 
+/*
+ * combineQuestionSummaryResults
+ *
+ * When working with multiple pages of results, we only want to return one set of objects.
  * This function adds up all the counts for the question summary results including completion and success measures
- * 
+ *
  * NOT REUSABLE
  */
 const combineQuestionSummaryResults = (arr) => {
@@ -382,7 +387,7 @@ const combineQuestionSummaryResults = (arr) => {
         for (j=0;j<responses.length;j++) {
             if (!combined[responses[j].id]) {
                 combined[responses[j].id] = 0;
-            } 
+            }
             combined[responses[j].id] += responses[j].count;
         }
         output.success += arr[i].success;
@@ -420,7 +425,7 @@ function makeQuestionDataCSVOutput(output) {
     var responses = output.responses;
 
     var output = [];
-    
+
     for (i=0;i<choices.length;i++) {
         rotated_choices[choices[i].id] = choices[i].description.en;
     }
@@ -437,7 +442,7 @@ function makeQuestionDataCSVOutput(output) {
 
 /*
  * processQuestionDataObjects
- * 
+ *
  * Specific function to build the data required for the getQuestionSummaryData API call
  * This function is required to call itself to process additional pages
  *
@@ -461,7 +466,7 @@ function processQuestionDataObjects(objects) {
     } else {
         resolved = true;
     }
-    
+
     var output = {};
 
     output.object = statements[0].object;
@@ -501,13 +506,13 @@ function processQuestionDataObjects(objects) {
     return output;
 }
 
-/* 
+/*
  * getActivityData
- * 
+ *
  * Get actor level data about interactions with an activity an all it's related objects.
- * You call this API with an activity ID which represents a page or module and it will return all related (e.g. child) activities. 
+ * You call this API with an activity ID which represents a page or module and it will return all related (e.g. child) activities.
  * In simple terms the returned data will be in the form of one row per actor and one column per activity with some added extras including sessionTime.
- * 
+ *
  * SPECIFIC API function.
  * Example API call = http://localhost:3080/api/activityData?activity=https://theodi.stream.org/xapi/activities/learning-lockker-stand-alone-xapi-test-dt
  */
@@ -526,7 +531,7 @@ exports.getActivityData = function(req, res, dbo) {
     var until = filter.until || null;
     var related_activities = filter.related_activities || true;
     var format = filter.format;
-
+    console.log('');
     console.log("Cache query");
     console.log("Activity:" + activity);
     console.log("Verb:" + verb);
@@ -534,7 +539,7 @@ exports.getActivityData = function(req, res, dbo) {
     console.log("until:" + until);
     console.log("related_activities:" + related_activities);
     //Get any cached data as well as update since to be the last cache update
-    
+
     var key = null;
     var dbConnect = dbo.getDb();
     collection = "StatsCache"
@@ -547,10 +552,20 @@ exports.getActivityData = function(req, res, dbo) {
                 var newActors = {};
                 var newObjects = {};
                 for(var i=0;i<cachedData.actors.length;i++) {
-                    newActors[cachedData.actors[i].name] = cachedData.actors[i];
+                    try {
+                        newActors[cachedData.actors[i].name] = cachedData.actors[i];
+                    } catch(err) {
+                        console.log(err);
+                        console.log(cachedData.actors[i]);
+                    }
                 }
                 for(var o=0;o<cachedData.objects.length;o++) {
-                    newObjects[cachedData.objects[o].id] = cachedData.objects[i];
+                    try {
+                        newObjects[cachedData.objects[o].id] = cachedData.objects[i];
+                    } catch (err) {
+                        console.log(err);
+                        console.log(cachedData.objects[i]);
+                    }
                 }
                 cachedData.actors = newActors;
                 cachedData.objects = newObjects;
@@ -558,8 +573,9 @@ exports.getActivityData = function(req, res, dbo) {
             updateFromLearningLocker(req,res,filter,cachedData,dbConnect);
     });
 }
-    
+
 function updateFromLearningLocker(req,res,filter,cachedData,dbConnect) {
+    console.log('updating from learning locker');
     var activity = filter.activity;
     var verb = filter.verb || null;
     var since = filter.since || null;
@@ -581,7 +597,7 @@ function updateFromLearningLocker(req,res,filter,cachedData,dbConnect) {
     //Set the new date of cache to be now
     const d = new Date();
     var lastUpdate = d.toISOString();
-    
+
     //Do the query
     getStatements(activity, verb, since, until, related_activities).then((objects) => {
         console.log("Filter since = " + filter.since);
@@ -592,11 +608,16 @@ function updateFromLearningLocker(req,res,filter,cachedData,dbConnect) {
             if (resolved == true) {
                 clearInterval(resolve);
                 Promise.all(promises).then((values) =>{
-                    //inject the cached object to be beginning of the values array here
-                    if (cachedData) {
+                    if (Array.isArray(values) && values.length === 1 && typeof values[0] === 'object' && Object.keys(values[0]).length === 0) {
+                        values = undefined;
+                    }
+                    if (!values && cachedData) {
+                        values = [cachedData];
+                    } else if (!values) {
+                        return values;
+                    } else if (cachedData) {
                         values.splice(0,0,cachedData);
                     }
-                    console.log(JSON.stringify(values, null, 2));
                     var output = {};
                     output.activity = activity;
                     output.verb = verb;
@@ -633,17 +654,18 @@ function removeKeyURIs(objects) {
     for (const key in objects) {
         output.push(objects[key]);
     }
+    console.log("done remove keys");
     return output;
 }
 
-/* 
+/*
  * getQuestionSummaryData
- * 
- * Get anonymous aggregated data about interactions with a single question. 
+ *
+ * Get anonymous aggregated data about interactions with a single question.
  * You call this API with an activity ID which represents a question which can be marked with the answered verb in XAPI.
- * In simple terms the returned data will be in the form of the question object and how many people answered with each option. 
+ * In simple terms the returned data will be in the form of the question object and how many people answered with each option.
  * In the JSON format you also get how many completions and how many were successful as well as a defintion of the object itself.
- * 
+ *
  * SPECIFIC API function.
  * Example API call = http://localhost:3080/api/questionSummary?activity=activity=https://learning.theodi.org/xapi/activities/mit-moral-machine-test%23/id/630f81656b4097008b2afd6f_branching_0
  */
@@ -664,7 +686,7 @@ exports.getQuestionSummaryData = function(req, res, dbo) {
     var until = filter.until || null;
     var related_activities = filter.related_activities || false;
     var format = filter.format;
-    
+
     getStatements(activity, verb, since, until, false).then((objects) => {
         if (!objects) {
             res.statusMessage = "Internal server error";
