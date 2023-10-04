@@ -193,7 +193,86 @@ app.post('/interactions', express.json(), async function(req, res){
     console.error('Error saving interaction:', err);
     res.status(500).json({ error: 'Error saving interaction' });
   }
+});
 
+app.post('/userAnswer', express.json(), async function(req, res) {
+  // Extract relevant data from the request body
+  const { componentID, componentType, userAnswer, items } = req.body;
+
+  // Check if the required fields are present in the request body
+  if (!componentID || !componentType || !userAnswer || !items) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  const timestamp = new Date().getTime();
+
+  try {
+    // Assuming you have a database connection similar to 'dbo.getDb()'
+    var dbConnect = dbo.getDb();
+
+    const newUserAnswer = {
+      timestamp,
+      componentID,
+      componentType,
+      userAnswer,
+      items,
+    };
+
+    const transmitterDataCollection = dbConnect.collection('TransmitterData');
+
+    // Insert the new userAnswer into the "TransmitterData" collection
+    const result = await transmitterDataCollection.insertOne(newUserAnswer);
+
+    // Return the ID of the created object to the user
+    res.status(201).json({ id: result.insertedId });
+  } catch (err) {
+    // Handle any errors that occur during the database operation
+    console.error('Error saving userAnswer:', err);
+    res.status(500).json({ error: 'Error saving userAnswer' });
+  }
+});
+
+async function fetchAnswerSummary(componentID) {
+  try {
+    var dbConnect = dbo.getDb();
+
+    // Find all documents with the specified componentID
+    const cursor = dbConnect.collection('TransmitterData').find({ componentID });
+
+    // Initialize an array to store the collated userAnswers
+    let collatedAnswers = [];
+
+    // Iterate through the documents and collate userAnswers
+    await cursor.forEach(doc => {
+      const userAnswer = doc.userAnswer;
+
+      // Ensure that collatedAnswers array has the same length as userAnswer
+      if (collatedAnswers.length !== userAnswer.length) {
+        collatedAnswers = Array(userAnswer.length).fill(0);
+      }
+
+      for (let i = 0; i < userAnswer.length; i++) {
+        if (userAnswer[i]) {
+          collatedAnswers[i]++;
+        }
+      }
+    });
+
+    return collatedAnswers;
+  } catch (error) {
+    throw error;
+  }
+}
+
+app.get('/answerSummary/:componentID', async (req, res) => {
+  const componentID = req.params.componentID;
+  try {
+    const answerSummary = await fetchAnswerSummary(componentID);
+    res.json(answerSummary);
+  } catch (error) {
+    console.error('Error fetching answer summary:', error);
+    res.status(500).json({ error: 'Error fetching answer summary' });
+  }
 });
 
 // GET /interactions endpoint with query parameters
