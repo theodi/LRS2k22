@@ -15,7 +15,7 @@ h1 {
         <h1 id="main-title"><span class="fa fa-lock"></span>Loading...</h1>
         <div style="text-align: left">
             <div id="transcript">
-                
+
             </div>
         </div>
     </div>
@@ -54,20 +54,20 @@ h1 {
                         h3.innerHTML = item.title;
                         document.getElementById(elementID).append(h3);
                         if (item.body) {
-                           document.getElementById(elementID).insertAdjacentHTML( 'beforeend', item.body );    
+                           document.getElementById(elementID).insertAdjacentHTML( 'beforeend', item.body );
                         }
                     } else {
                         appendList = true;
                         var option = document.createElement('li');
                         if (item.body) {
                             option.innerHTML = item.body;
-                        } 
+                        }
                         if (item.text) {
                             option.innerHTML = item.text;
                         }
                         list.append(option);
                     }
-                }); 
+                });
             } catch (err) {
                 //console.log(err);
             }
@@ -98,7 +98,7 @@ h1 {
         }
     });
    }
-   $(document).ready( function () {   
+   $(document).ready( function () {
         $.get('/api/contentObject/<%= id %>', function(data) {
             document.getElementById("main-title").innerHTML = data.title;
            // for (const [key, value] of Object.entries(data.articles)) {
@@ -134,7 +134,7 @@ h1 {
                                 }
                             }
                         }
-                    }   
+                    }
                 //}
             //}
         });

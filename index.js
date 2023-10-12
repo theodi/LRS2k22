@@ -8,15 +8,31 @@ const express = require('express');
 const cors = require("cors");
 const http = require('http');
 const https = require('https');
-const fs = require('fs');
+const fs = require('fs-extra');
 const dbo = require("./db/conn");
+const tmp = require('tmp-promise');
+const tar = require('tar');
+const path = require('path');
+const rimraf = require('rimraf');
 const { ObjectId } = require("mongodb");
 const session = require('express-session');
 var api = require('./api');
 var adaptapi = require('./adaptHandler');
 var userHandler = require('./userHandler');
+const xmlToHtml = require("./xml-to-html");
 const adaptdb = require("./db/adapt-aat");
 const aatBase = process.env.AAT_BASE;
+const multer = require('multer');
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, './uploads'); // Set the destination directory for uploaded files
+  },
+  filename: (req, file, cb) => {
+    cb(null, file.originalname); // Set the filename for uploaded files
+  },
+});
+const upload = multer({ storage });
 
 if (process.env.SSLKEY) {
   var privateKey  = fs.readFileSync(process.env.SSLKEY, 'utf8');
@@ -361,6 +377,53 @@ app.get('/profile', function(req, res) {
         req.session.profile = res.locals.profile;
         res.render('pages/profile');
       });
+});
+
+app.post("/moodle/course-extractor", upload.single('file'), async (req, res) => {
+  try {
+    // Access the uploaded file's path
+    const uploadedFilePath = req.file.path;
+
+    // Create a temporary directory for processing
+    const tmpDir = await tmp.dir();
+
+    // Rename the file if it has a .mbz extension to .tar.gz for clarity
+    if (path.extname(uploadedFilePath) === ".mbz") {
+      const newPath = path.join(tmpDir.path, 'upload.tar.gz');
+      await fs.rename(uploadedFilePath, newPath);
+    } else {
+      const newPath = path.join(tmpDir.path, 'upload.tar.gz');
+      await fs.copy(uploadedFilePath, newPath);
+    }
+
+    // Extract .tar.gz to the temporary directory
+    await tar.x({
+      file: path.join(tmpDir.path, 'upload.tar.gz'),
+      cwd: tmpDir.path,
+    });
+
+    // Perform the conversion using the extracted files in tmpDirPath
+    const activitiesPath = path.join(tmpDir.path, "activities");
+    const conversionResult = await xmlToHtml.convertFiles(activitiesPath);
+
+    // Clean up the temporary directory
+    await rimraf.sync(tmpDir.path);
+
+    // Send a response indicating success
+    res.send(conversionResult);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send(err.message);
+  }
+});
+
+
+app.get('/moodle/course-extractor', function(req,res) {
+  if (!req.isAuthenticated()) { unauthorised(res); return; }
+  if (req.session.profile.userType == "user") { forbidden(res); return; }
+  res.locals.pageTitle = "Course " + req.params.id;
+  res.locals.id = req.params.id;
+  res.render('pages/moodle-extractor');
 });
 
 app.get('/courses', function(req, res) {
