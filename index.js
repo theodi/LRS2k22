@@ -18,6 +18,7 @@ const { ObjectId } = require("mongodb");
 const session = require('express-session');
 var api = require('./api');
 var adaptapi = require('./adaptHandler');
+const packageHandler = require('./packageHandler');
 var userHandler = require('./userHandler');
 const xmlToHtml = require("./xml-to-html");
 const adaptdb = require("./db/adapt-aat");
@@ -157,6 +158,7 @@ function ensureAuthenticated(req, res, next) {
 
 app.use('/private', ensureAuthenticated);
 app.use('/private', express.static(__dirname + '/private'));
+app.use('/course/:courseId/packages', packageHandler);
 
 /* Define all the pages */
 

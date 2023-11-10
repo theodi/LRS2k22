@@ -8,6 +8,7 @@
 
 <div class="container box">
     <div class="jumbotron text-primary" style="padding: 1em; line-height: 1.5em;">
+        <div id="messageBanner"></div>
         <h1 id="main-title"><span class="fa fa-lock"></span>Loading...</h1>
         <div style="text-align: left">
             <subtitle id="description">
@@ -20,6 +21,53 @@
             <table id="xapi-factbox">
 
             </table>
+
+            <h2>Packages</h2>
+
+            <!-- Display latest and previous versions here -->
+
+            <div class="package-sections">
+                <!-- Build Package Section -->
+                <div class="package-section">
+                    <h3>Build Packages</h3>
+                        <table>
+                            <thead>
+                                <th>Version</th>
+                                <th>Timestamp</th>
+                                <td>Download</td>
+                                <td>Delete</td>
+                            </thead>
+                            <tbody id="build-packages">
+
+                            </tbody>
+                            <!-- Display Build packages here -->
+                        </table>
+                        <input type="file" id="buildFileInput" accept=".zip">
+                        <button type="button" onclick="uploadPackage('build')">Upload</button>
+                    </form>
+                </div>
+                <!-- Source Package Section -->
+                <div class="package-section">
+                    <h3>Source Packages</h3>
+                    <table>
+                        <thead>
+                            <th>Version</th>
+                            <th>Timestamp</th>
+                            <td>Download</td>
+                            <td>Delete</td>
+                        </thead>
+                        <tbody id="source-packages">
+
+                        </tbody>
+                        <!-- Display Source packages here -->
+                    </table>
+                    <!-- Display source packages here -->
+                        <input type="file" id="sourceFileInput" accept=".zip">
+                        <button type="button" onclick="uploadPackage('source')">Upload</button>
+                    </form>
+                </div>
+            </div>
+
             <h2>Module overview</h2>
             <table id="factbox">
 
@@ -35,7 +83,7 @@
                   </tr>
                 </thead>
                 <tbody id="section_table_body">
-        
+
                 </tbody>
             </table>
             <h2>Extensions</h2>
@@ -47,14 +95,145 @@
                   </tr>
                 </thead>
                 <tbody id="extensions_table_body">
-        
+
                 </tbody>
             </table>
         </div>
     </div>
 </div>
 <script>
-    function removeHTML(str){ 
+    // Function to handle package upload
+    async function uploadPackage(packageType) {
+        const inputElement = document.getElementById(`${packageType}FileInput`);
+        const file = inputElement.files[0];
+
+        if (!file) {
+            // Handle the case where no file is selected
+            displayMessage('Please select a file.', 'error');
+            return;
+        }
+
+        // Create a FormData object to send the file
+        const formData = new FormData();
+        formData.append(packageType, file);
+
+        try {
+            // Make a POST request to upload the package
+            const response = await fetch(`/course/<%= id %>/packages/upload/`, {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (response.ok) {
+            // Display a success message
+            displayMessage(`Package (${packageType}) uploaded successfully.`, 'success');
+            displayPackages();
+
+            // Optionally, update the relevant section to show the uploaded file
+        } else {
+            // Handle the case where the upload fails
+            response.json().then((data) => {
+                displayMessage('Package upload failed: ' + data.error);
+            });
+        }
+        } catch (error) {
+        // Handle any network or server errors
+        console.error('Error uploading package:', error);
+        displayMessage('An error occurred while uploading the package.');
+        }
+    }
+    async function deletePackage(deleteUrl) {
+        try {
+            // Send a DELETE request to delete the package
+            const response = await fetch(deleteUrl, {
+                method: 'DELETE',
+            });
+
+            if (response.ok) {
+                displayMessage('Package deleted successfully');
+                // Call the displayPackages() function to update the package list
+                displayPackages();
+            } else {
+                displayMessage('Error deleting package:', response.statusText);
+            }
+        } catch (error) {
+            displayMessage('Error deleting package:', error);
+        }
+    }
+    // Function to get and display the list of packages
+  async function displayPackages() {
+    const courseId = '<%= id %>';
+
+    try {
+      // Make a GET request to fetch the list of build packages
+      const buildResponse = await fetch(`/course/${courseId}/packages/build`, {
+        method: 'GET',
+      });
+
+      // Make a GET request to fetch the list of source packages
+      const sourceResponse = await fetch(`/course/${courseId}/packages/source`, {
+        method: 'GET',
+      });
+
+      if (buildResponse.ok && sourceResponse.ok) {
+        const buildData = await buildResponse.json();
+        const sourceData = await sourceResponse.json();
+
+        // Display BUILD packages
+        displayPackageSection(buildData.packages, courseId, 'build');
+
+        // Display source packages
+        //displayPackageSection(sourceData.packages, courseId, 'source');
+      } else {
+        displayMessage('Error fetching packages');
+      }
+    } catch (error) {
+      console.error('Error fetching packages:', error);
+      displayMessage('<p>An error occurred while fetching packages.</p>');
+    }
+  }
+
+  // Function to display a package section
+  function displayPackageSection(packages, courseId, packageType) {
+    let html = '';
+    var count = 0;
+    packages.forEach((packageFileName) => {
+        const packageDateTime = new Date(parseInt(packageFileName.split('-')[1], 10));
+        const formattedDateTime = packageDateTime.toLocaleString();
+
+        const downloadLink = `/course/${courseId}/packages/${packageType}/${packageFileName}`;
+        const deleteLink = `/course/${courseId}/packages/delete/${packageType}/${packageFileName}`;
+
+        if (count == 0) {
+            countText = '<a href="/course/'+courseId+'/packages/build/latest">latest</a>';
+        } else {
+            countText = count;
+        }
+        html += `
+        <tr class="package-entry">
+            <td>${countText}</td>
+            <td>${formattedDateTime}</td>
+            <td><a href="${downloadLink}" target="_blank">Download</a></td>
+            <td><a href="#" onclick="deletePackage('${deleteLink}')">Delete</a></td>
+        </tr>
+        `;
+        count = count -1;
+    });
+    const packagesSection = document.getElementById(packageType + "-packages");
+    packagesSection.innerHTML = html;
+  }
+
+    // Function to display a message banner
+    function displayMessage(message, messageType) {
+        const messageBanner = document.getElementById('messageBanner');
+        messageBanner.innerHTML = message;
+        messageBanner.className = messageType;
+        setTimeout(() => {
+        messageBanner.innerHTML = '';
+        messageBanner.className = '';
+        }, 5000); // Clear the message after 5 seconds
+    }
+    function removeHTML(str){
         var tmp = document.createElement("DIV");
         tmp.innerHTML = str;
         return tmp.textContent || tmp.innerText || "";
@@ -123,6 +302,7 @@
         var activityID = null;
         var isXAPI = false;
         var courseId = "";
+        displayPackages();
         $.get('/api/contentObject/<%= id %>/config', function(data) {
             addRowToTable("course-factbox","ID",data._courseId);
             courseId = data._courseId;
@@ -154,7 +334,7 @@
                 addRowToTable("xapi-factbox","on assessment failure",spoor._reporting._onAssessmentFailure);
             }
             for (const [key, value] of Object.entries(data._enabledExtensions)) {
-               addExtensionDataToTable("extensions_table_body",value); 
+               addExtensionDataToTable("extensions_table_body",value);
             }
         });
         $.get('/api/contentObject/<%= id %>', function(data) {
@@ -249,7 +429,7 @@
                             addDataToTable("section_table_body",local);
                             count += 1;
                         }
-                    }   
+                    }
                 //}
             }
             addRowToTable("factbox","total assessmentWeight",totalAssessmentWeight);
