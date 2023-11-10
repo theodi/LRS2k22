@@ -18,7 +18,6 @@ const { ObjectId } = require("mongodb");
 const session = require('express-session');
 var api = require('./api');
 var adaptapi = require('./adaptHandler');
-const packageHandler = require('./packageHandler');
 var userHandler = require('./userHandler');
 const xmlToHtml = require("./xml-to-html");
 const adaptdb = require("./db/adapt-aat");
@@ -158,7 +157,6 @@ function ensureAuthenticated(req, res, next) {
 
 app.use('/private', ensureAuthenticated);
 app.use('/private', express.static(__dirname + '/private'));
-app.use('/course/:courseId/packages', packageHandler);
 
 /* Define all the pages */
 
@@ -358,6 +356,11 @@ function unauthorised(res) {
   res.locals.pageTitle = "401 Unauthorised";
   return res.status(401).render("errors/401");
 }
+
+module.exports = {
+  unauthorised,
+  // Other exports as needed...
+};
 
 function forbidden(res) {
   res.locals.pageTitle = "403 Forbidden";
@@ -572,8 +575,12 @@ app.get('/api/:collection/:id', function(req,res) {
   adaptapi.getObjectById(req, res, adaptdb, req.params.collection, req.params.id);
 });
 
-//Keep this at the END!
 
+// Routes handled elsewhere
+const packageHandler = require('./packageHandler');
+app.use('/course/:courseId/packages', packageHandler);
+
+//Keep this at the END!
 app.get('*', function(req, res){
   res.locals.pageTitle = "404 Not Found";
   return res.status(404).render("errors/404");

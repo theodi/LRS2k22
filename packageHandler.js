@@ -3,6 +3,7 @@ const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const router = express.Router();
+const { unauthorised } = require('./index.js');
 const AdmZip = require('adm-zip');
 
 // Configure multer for handling file uploads
@@ -68,6 +69,19 @@ router.post('/upload', upload.fields([
   }
   if (sourcePackage) {
     const sourcePackagePath = path.join(__dirname, 'packages', courseId, 'source', sourcePackage);
+
+    const zip = new AdmZip(sourcePackagePath);
+    const zipEntries = zip.getEntries();
+
+    const validZip = zipEntries.find((entry) => {
+      return entry.entryName === 'src/course/en/contentObjects.json';
+    });
+
+    if (!validZip) {
+      // Delete the invalid source package file
+      fs.unlinkSync(sourcePackagePath);
+      return res.status(400).json({ error: 'Invalid SOURCE package' });
+    }
   }
 
   // Send a response indicating success
@@ -104,12 +118,17 @@ router.get('/:packageType', (req, res) => {
 
 router.get('/:packageType/latest', (req, res) => {
   if (!req.isAuthenticated()) {
-    // Define an array of allowed hosts
+    // Define an array of allowed host names to check against
     const allowedHosts = ['moodle.learndata.info', 'odi-test.opensourcelearning.co.uk'];
 
-    // Check if the request's host is in the allowed hosts array
-    if (!allowedHosts.includes(req.headers.host)) {
-      // Return an unauthorized response if the host is not allowed
+    // Get the User-Agent header from the request
+    const userAgent = req.headers['user-agent'];
+
+    // Check if the User-Agent contains one of the allowed hosts
+    const isUserAgentAllowed = allowedHosts.some((allowedHost) => userAgent.includes(allowedHost));
+
+    if (!isUserAgentAllowed) {
+      // Return an unauthorized response if the User-Agent does not match any of the allowed hosts
       unauthorised(res);
       return;
     }
@@ -141,11 +160,8 @@ router.get('/:packageType/latest', (req, res) => {
       return res.status(404).json({ error: 'No packages found' });
     }
 
-    // Set the filename for the response
-    const responseFilename = `${courseId}-latest.zip`;
-
     // Stream the most recent package file as a download
-    res.setHeader('Content-Disposition', `attachment; filename=${responseFilename}`);
+    res.setHeader('Content-Disposition', `attachment; filename=${mostRecentPackage}`);
     res.setHeader('Content-Type', 'application/zip');
     fs.createReadStream(packagePath + "/" + mostRecentPackage).pipe(res);
   });
@@ -182,12 +198,17 @@ router.delete('/delete/:packageType/:packageFileName', (req, res) => {
 
 router.get('/:packageType/:packageFileName', (req, res) => {
   if (!req.isAuthenticated()) {
-    // Define an array of allowed hosts
+    // Define an array of allowed host names to check against
     const allowedHosts = ['moodle.learndata.info', 'odi-test.opensourcelearning.co.uk'];
 
-    // Check if the request's host is in the allowed hosts array
-    if (!allowedHosts.includes(req.headers.host)) {
-      // Return an unauthorized response if the host is not allowed
+    // Get the User-Agent header from the request
+    const userAgent = req.headers['user-agent'];
+
+    // Check if the User-Agent contains one of the allowed hosts
+    const isUserAgentAllowed = allowedHosts.some((allowedHost) => userAgent.includes(allowedHost));
+
+    if (!isUserAgentAllowed) {
+      // Return an unauthorized response if the User-Agent does not match any of the allowed hosts
       unauthorised(res);
       return;
     }

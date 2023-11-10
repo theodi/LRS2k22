@@ -8,7 +8,6 @@
 
 <div class="container box">
     <div class="jumbotron text-primary" style="padding: 1em; line-height: 1.5em;">
-        <div id="messageBanner"></div>
         <h1 id="main-title"><span class="fa fa-lock"></span>Loading...</h1>
         <div style="text-align: left">
             <subtitle id="description">
@@ -30,21 +29,20 @@
                 <!-- Build Package Section -->
                 <div class="package-section">
                     <h3>Build Packages</h3>
-                        <table>
-                            <thead>
-                                <th>Version</th>
-                                <th>Timestamp</th>
-                                <td>Download</td>
-                                <td>Delete</td>
-                            </thead>
-                            <tbody id="build-packages">
+                    <table>
+                        <thead>
+                            <th>Version</th>
+                            <th>Timestamp</th>
+                            <td>Download</td>
+                            <td>Delete</td>
+                        </thead>
+                        <tbody id="build-packages">
 
-                            </tbody>
-                            <!-- Display Build packages here -->
-                        </table>
-                        <input type="file" id="buildFileInput" accept=".zip">
-                        <button type="button" onclick="uploadPackage('build')">Upload</button>
-                    </form>
+                        </tbody>
+                       <!-- Display Build packages here -->
+                    </table>
+                    <input type="file" id="buildFileInput" accept=".zip">
+                    <button type="button" onclick="uploadPackage('build')">Upload</button>
                 </div>
                 <!-- Source Package Section -->
                 <div class="package-section">
@@ -62,12 +60,11 @@
                         <!-- Display Source packages here -->
                     </table>
                     <!-- Display source packages here -->
-                        <input type="file" id="sourceFileInput" accept=".zip">
-                        <button type="button" onclick="uploadPackage('source')">Upload</button>
-                    </form>
+                    <input type="file" id="sourceFileInput" accept=".zip">
+                    <button type="button" onclick="uploadPackage('source')">Upload</button>
                 </div>
             </div>
-
+            <div id="messageBanner" style="text-align: center; width:100%; color:red;"></div>
             <h2>Module overview</h2>
             <table id="factbox">
 
@@ -106,6 +103,7 @@
     async function uploadPackage(packageType) {
         const inputElement = document.getElementById(`${packageType}FileInput`);
         const file = inputElement.files[0];
+        inputElement.value = '';
 
         if (!file) {
             // Handle the case where no file is selected
@@ -183,7 +181,7 @@
         displayPackageSection(buildData.packages, courseId, 'build');
 
         // Display source packages
-        //displayPackageSection(sourceData.packages, courseId, 'source');
+        displayPackageSection(sourceData.packages, courseId, 'source');
       } else {
         displayMessage('Error fetching packages');
       }
@@ -203,9 +201,10 @@
 
         const downloadLink = `/course/${courseId}/packages/${packageType}/${packageFileName}`;
         const deleteLink = `/course/${courseId}/packages/delete/${packageType}/${packageFileName}`;
+        const latestLink = `/course/${courseId}/packages/${packageType}/latest`;
 
         if (count == 0) {
-            countText = '<a href="/course/'+courseId+'/packages/build/latest">latest</a>';
+            countText = '<a href="'+latestLink+'">latest</a>';
         } else {
             countText = count;
         }
