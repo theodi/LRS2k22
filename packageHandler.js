@@ -103,7 +103,17 @@ router.get('/:packageType', (req, res) => {
 });
 
 router.get('/:packageType/latest', (req, res) => {
-  if (!req.isAuthenticated()) { unauthorised(res); return; }
+  if (!req.isAuthenticated()) {
+    // Define an array of allowed hosts
+    const allowedHosts = ['moodle.learndata.info', 'odi-test.opensourcelearning.co.uk'];
+
+    // Check if the request's host is in the allowed hosts array
+    if (!allowedHosts.includes(req.headers.host)) {
+      // Return an unauthorized response if the host is not allowed
+      unauthorised(res);
+      return;
+    }
+  }
   const courseId = getCourseId(req);
   const packageType = req.params.packageType;
   const packagePath = path.join(__dirname, 'packages', courseId, packageType);
@@ -171,7 +181,17 @@ router.delete('/delete/:packageType/:packageFileName', (req, res) => {
 });
 
 router.get('/:packageType/:packageFileName', (req, res) => {
-  if (!req.isAuthenticated()) { unauthorised(res); return; }
+  if (!req.isAuthenticated()) {
+    // Define an array of allowed hosts
+    const allowedHosts = ['moodle.learndata.info', 'odi-test.opensourcelearning.co.uk'];
+
+    // Check if the request's host is in the allowed hosts array
+    if (!allowedHosts.includes(req.headers.host)) {
+      // Return an unauthorized response if the host is not allowed
+      unauthorised(res);
+      return;
+    }
+  }
   const courseId = getCourseId(req);
   const packageType = req.params.packageType;
   const packageFileName = req.params.packageFileName;
