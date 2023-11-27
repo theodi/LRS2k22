@@ -20,11 +20,11 @@
             <table id="xapi-factbox">
 
             </table>
-
+            <button type="button" onclick="resetProgress()">Reset block/component progress bar tracking</button>
+            <div id="resetMessageBanner" style="text-align: center; width:100%; color:red;"></div>
             <h2>Packages</h2>
 
             <!-- Display latest and previous versions here -->
-
             <div class="package-sections">
                 <!-- Build Package Section -->
                 <div class="package-section">
@@ -100,6 +100,32 @@
 </div>
 <script>
     // Function to handle package upload
+    async function resetProgress() {
+        try {
+            // Make a POST request to reset page-level progress
+            const response = await fetch(`/course/<%= id %>/resetPageLevelProgress`, {
+            method: 'POST',
+            });
+
+            if (response.ok) {
+            // Reset was successful
+            response.json().then((data) => {
+                // Display a success message from the server
+                displayMessage(data.message, 'success',"resetMessageBanner");
+                // Optionally, update the UI or perform additional actions
+            });
+            } else {
+            // Handle the case where the reset fails
+            response.json().then((data) => {
+                displayMessage('Page-level progress reset failed: ' + data.error, 'error',"resetMessageBanner");
+            });
+            }
+        } catch (error) {
+            // Handle any network or server errors
+            console.error('Error resetting page-level progress:', error);
+            displayMessage('An error occurred while resetting page-level progress.', 'error',"resetMessageBanner");
+        }
+    }
     async function uploadPackage(packageType) {
         const inputElement = document.getElementById(`${packageType}FileInput`);
         const file = inputElement.files[0];
@@ -107,7 +133,7 @@
 
         if (!file) {
             // Handle the case where no file is selected
-            displayMessage('Please select a file.', 'error');
+            displayMessage('Please select a file.', 'error',"messageBanner");
             return;
         }
 
@@ -124,20 +150,20 @@
 
         if (response.ok) {
             // Display a success message
-            displayMessage(`Package (${packageType}) uploaded successfully.`, 'success');
+            displayMessage(`Package (${packageType}) uploaded successfully.`, 'success',"messageBanner");
             displayPackages();
 
             // Optionally, update the relevant section to show the uploaded file
         } else {
             // Handle the case where the upload fails
             response.json().then((data) => {
-                displayMessage('Package upload failed: ' + data.error);
+                displayMessage('Package upload failed: ' + data.error,'error',"messageBanner");
             });
         }
         } catch (error) {
         // Handle any network or server errors
         console.error('Error uploading package:', error);
-        displayMessage('An error occurred while uploading the package.');
+        displayMessage('An error occurred while uploading the package.','error',"messageBanner");
         }
     }
     async function deletePackage(deleteUrl) {
@@ -148,14 +174,14 @@
             });
 
             if (response.ok) {
-                displayMessage('Package deleted successfully');
+                displayMessage('Package deleted successfully','success',"messageBanner");
                 // Call the displayPackages() function to update the package list
                 displayPackages();
             } else {
-                displayMessage('Error deleting package:', response.statusText);
+                displayMessage('Error deleting package:', response.statusText,"messageBanner");
             }
         } catch (error) {
-            displayMessage('Error deleting package:', error);
+            displayMessage('Error deleting package: '+error,'error',"messageBanner");
         }
     }
     // Function to get and display the list of packages
@@ -183,11 +209,11 @@
         // Display source packages
         displayPackageSection(sourceData.packages, courseId, 'source');
       } else {
-        displayMessage('Error fetching packages');
+        displayMessage('Error fetching packages','error',"messageBanner");
       }
     } catch (error) {
       console.error('Error fetching packages:', error);
-      displayMessage('<p>An error occurred while fetching packages.</p>');
+      displayMessage('<p>An error occurred while fetching packages.</p>','error',"messageBanner");
     }
   }
 
@@ -223,14 +249,14 @@
   }
 
     // Function to display a message banner
-    function displayMessage(message, messageType) {
-        const messageBanner = document.getElementById('messageBanner');
+    function displayMessage(message, messageType,element) {
+        const messageBanner = document.getElementById(element);
         messageBanner.innerHTML = message;
         messageBanner.className = messageType;
         setTimeout(() => {
         messageBanner.innerHTML = '';
         messageBanner.className = '';
-        }, 5000); // Clear the message after 5 seconds
+        }, 10000); // Clear the message after 5 seconds
     }
     function removeHTML(str){
         var tmp = document.createElement("DIV");

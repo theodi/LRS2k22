@@ -23,6 +23,7 @@ const xmlToHtml = require("./xml-to-html");
 const adaptdb = require("./db/adapt-aat");
 const aatBase = process.env.AAT_BASE;
 const multer = require('multer');
+const fetch = require('node-fetch');
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -444,7 +445,7 @@ app.get('/course/:id', function(req, res) {
   if (req.session.profile.userType == "user") { forbidden(res); return; }
   res.locals.pageTitle = "Course" + req.params.id;
   res.locals.id = req.params.id;
-  res.locals.aatBase = aatBase;
+  res.locals.aatBase = aatBase + "/";
   res.render('pages/contentObject');
 });
 
@@ -575,6 +576,32 @@ app.get('/api/:collection/:id', function(req,res) {
   adaptapi.getObjectById(req, res, adaptdb, req.params.collection, req.params.id);
 });
 
+app.post('/course/:courseId/resetPageLevelProgress', async function(req,res) {
+  if (!req.isAuthenticated()) { unauthorised(res); return; }
+  const courseId = req.params.courseId;
+
+  try {
+    // Make an HTTP GET request to the external service using fetch
+    const response = await fetch(aatBase+':3035/resetPageLevelProgress?course-id='+courseId, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`External service returned status: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    // Return the response from the external service
+    res.status(response.status).json(data);
+  } catch (error) {
+    console.error('Error calling external service:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
 
 // Routes handled elsewhere
 const packageHandler = require('./packageHandler');
