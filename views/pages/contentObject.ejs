@@ -1,392 +1,446 @@
 <%- include('../partials/header') %>
-<link rel="stylesheet" type="text/css" href="//cdn.datatables.net/1.12.1/css/jquery.dataTables.css">
-<link rel="stylesheet" type="text/css" href="//cdn.datatables.net/responsive/2.3.0/css/responsive.dataTables.min.css">
-<script type="text/javascript" charset="utf8" src="//cdn.datatables.net/1.12.1/js/jquery.dataTables.min.js"></script>
-<script type="text/javascript" charset="utf8" src="//cdn.datatables.net/responsive/2.3.0/js/dataTables.responsive.min.js"></script>
-<script type="text/javascript" charset="utf8" src="//cdn.datatables.net/buttons/2.2.3/js/dataTables.buttons.min.js"></script>
-<script type="text/javascript" charset="utf8" src="//cdn.datatables.net/buttons/2.2.3/js/buttons.colVis.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="//cdn.datatables.net/1.12.1/css/jquery.dataTables.css">
+    <link rel="stylesheet" type="text/css"
+        href="//cdn.datatables.net/responsive/2.3.0/css/responsive.dataTables.min.css">
+    <script type="text/javascript" charset="utf8"
+        src="//cdn.datatables.net/1.12.1/js/jquery.dataTables.min.js"></script>
+    <script type="text/javascript" charset="utf8"
+        src="//cdn.datatables.net/responsive/2.3.0/js/dataTables.responsive.min.js"></script>
+    <script type="text/javascript" charset="utf8"
+        src="//cdn.datatables.net/buttons/2.2.3/js/dataTables.buttons.min.js"></script>
+    <script type="text/javascript" charset="utf8"
+        src="//cdn.datatables.net/buttons/2.2.3/js/buttons.colVis.min.js"></script>
 
-<div class="container box">
-    <div class="jumbotron text-primary" style="padding: 1em; line-height: 1.5em;">
-        <h1 id="main-title"><span class="fa fa-lock"></span>Loading...</h1>
-        <div style="text-align: left">
-            <subtitle id="description">
-            </subtitle>
-            <h2>Course overview</h2>
-            <table id="course-factbox">
+    <div class="container box">
+        <div class="jumbotron text-primary" style="padding: 1em; line-height: 1.5em;">
+            <h1 id="main-title"><span class="fa fa-lock"></span>Loading...</h1>
+            <div style="text-align: left">
+                <subtitle id="description">
+                </subtitle>
+                <h2>Course overview</h2>
+                <table id="course-factbox">
 
-            </table>
-            <h2>Tracking Config</h2>
-            <table id="xapi-factbox">
+                </table>
+                <h2>Tracking Config</h2>
+                <table id="xapi-factbox">
 
-            </table>
-            <button type="button" onclick="resetProgress()">Reset block/component progress bar tracking</button>
-            <div id="resetMessageBanner" style="text-align: center; width:100%; color:red;"></div>
-            <h2>Packages</h2>
+                </table>
+                <button type="button" onclick="resetProgress()">Reset block/component progress bar tracking</button>
+                <div id="resetMessageBanner" style="text-align: center; width:100%; color:red;"></div>
+                <h2>Packages</h2>
 
-            <!-- Display latest and previous versions here -->
-            <div class="package-sections">
-                <!-- Build Package Section -->
-                <div class="package-section">
-                    <h3>Build Packages</h3>
-                    <table>
-                        <thead>
-                            <th>Version</th>
-                            <th>Timestamp</th>
-                            <td>Download</td>
-                            <td>Delete</td>
-                        </thead>
-                        <tbody id="build-packages">
+                <!-- Display latest and previous versions here -->
+                <div class="package-sections">
+                    <!-- Build Package Section -->
+                    <div class="package-section">
+                        <h3>Build Packages</h3>
+                        <table>
+                            <thead>
+                                <th>Version</th>
+                                <th>Timestamp</th>
+                                <td>Download</td>
+                                <td>Delete</td>
+                            </thead>
+                            <tbody id="build-packages">
 
-                        </tbody>
-                       <!-- Display Build packages here -->
-                    </table>
-                    <input type="file" id="buildFileInput" accept=".zip">
-                    <button type="button" onclick="uploadPackage('build')">Upload</button>
+                            </tbody>
+                            <!-- Display Build packages here -->
+                        </table>
+                        <input type="file" id="buildFileInput" accept=".zip">
+                        <button type="button" onclick="uploadPackage('build')">Upload</button>
+                    </div>
+                    <!-- Source Package Section -->
+                    <div class="package-section">
+                        <h3>Source Packages</h3>
+                        <table>
+                            <thead>
+                                <th>Version</th>
+                                <th>Timestamp</th>
+                                <td>Download</td>
+                                <td>Delete</td>
+                            </thead>
+                            <tbody id="source-packages">
+
+                            </tbody>
+                            <!-- Display Source packages here -->
+                        </table>
+                        <!-- Display source packages here -->
+                        <input type="file" id="sourceFileInput" accept=".zip">
+                        <button type="button" onclick="uploadPackage('source')">Upload</button>
+                    </div>
                 </div>
-                <!-- Source Package Section -->
-                <div class="package-section">
-                    <h3>Source Packages</h3>
-                    <table>
-                        <thead>
-                            <th>Version</th>
-                            <th>Timestamp</th>
-                            <td>Download</td>
-                            <td>Delete</td>
-                        </thead>
-                        <tbody id="source-packages">
+                <div id="messageBanner" style="text-align: center; width:100%; color:red;"></div>
+                <h2>Module overview</h2>
+                <table id="factbox">
 
-                        </tbody>
-                        <!-- Display Source packages here -->
-                    </table>
-                    <!-- Display source packages here -->
-                    <input type="file" id="sourceFileInput" accept=".zip">
-                    <button type="button" onclick="uploadPackage('source')">Upload</button>
-                </div>
+                </table>
+                <h2>Section titles</h2>
+                <table id="section_titles">
+                    <thead>
+                        <tr>
+                            <th>Block #</th>
+                            <th>Type</th>
+                            <th>Title</th>
+                            <th># words</th>
+                        </tr>
+                    </thead>
+                    <tbody id="section_table_body">
+
+                    </tbody>
+                </table>
+                <h2>Extensions</h2>
+                <table id="extensions-factbox">
+                    <thead>
+                        <tr>
+                            <th>Extension</th>
+                            <th>Version</th>
+                        </tr>
+                    </thead>
+                    <tbody id="extensions_table_body">
+
+                    </tbody>
+                </table>
             </div>
-            <div id="messageBanner" style="text-align: center; width:100%; color:red;"></div>
-            <h2>Module overview</h2>
-            <table id="factbox">
-
-            </table>
-            <h2>Section titles</h2>
-            <table id="section_titles">
-                <thead>
-                  <tr>
-                    <th>Block #</th>
-                    <th>Type</th>
-                    <th>Title</th>
-                    <th># words</th>
-                  </tr>
-                </thead>
-                <tbody id="section_table_body">
-
-                </tbody>
-            </table>
-            <h2>Extensions</h2>
-            <table id="extensions-factbox">
-                <thead>
-                  <tr>
-                    <th>Extension</th>
-                    <th>Version</th>
-                  </tr>
-                </thead>
-                <tbody id="extensions_table_body">
-
-                </tbody>
-            </table>
         </div>
     </div>
-</div>
-<script>
-    // Function to handle package upload
-    async function resetProgress() {
-        try {
-            // Make a POST request to reset page-level progress
-            const response = await fetch(`/course/<%= id %>/resetPageLevelProgress`, {
-            method: 'POST',
-            });
+    <script>
 
-            if (response.ok) {
-            // Reset was successful
-            response.json().then((data) => {
-                // Display a success message from the server
-                displayMessage(data.message, 'success',"resetMessageBanner");
-                // Optionally, update the UI or perform additional actions
-            });
-            } else {
-            // Handle the case where the reset fails
-            response.json().then((data) => {
-                displayMessage('Page-level progress reset failed: ' + data.error, 'error',"resetMessageBanner");
-            });
+        let courseData = {};
+        let objectData = {};
+        let courseId = "";
+        const contentObjectId = "<%= id %>";
+
+        async function loadData() {
+            try {
+                courseData = await getCourseData();
+                courseId = courseData._courseId;
+
+                objectData = await getContentObjectData();
+
+                // Trigger the document ready event when data is loaded
+                $(document).ready(handleDocumentReady);
+            } catch (error) {
+                console.error('Error loading course data:', error);
+                // Handle error appropriately
             }
-        } catch (error) {
-            // Handle any network or server errors
-            console.error('Error resetting page-level progress:', error);
-            displayMessage('An error occurred while resetting page-level progress.', 'error',"resetMessageBanner");
-        }
-    }
-    async function uploadPackage(packageType) {
-        const inputElement = document.getElementById(`${packageType}FileInput`);
-        const file = inputElement.files[0];
-        inputElement.value = '';
-
-        if (!file) {
-            // Handle the case where no file is selected
-            displayMessage('Please select a file.', 'error',"messageBanner");
-            return;
         }
 
-        // Create a FormData object to send the file
-        const formData = new FormData();
-        formData.append(packageType, file);
-
-        try {
-            // Make a POST request to upload the package
-            const response = await fetch(`/course/<%= id %>/packages/upload/`, {
-            method: 'POST',
-            body: formData,
-        });
-
-        if (response.ok) {
-            // Display a success message
-            displayMessage(`Package (${packageType}) uploaded successfully.`, 'success',"messageBanner");
-            displayPackages();
-
-            // Optionally, update the relevant section to show the uploaded file
-        } else {
-            // Handle the case where the upload fails
-            response.json().then((data) => {
-                displayMessage('Package upload failed: ' + data.error,'error',"messageBanner");
+        async function getCourseData() {
+            return new Promise((resolve, reject) => {
+                $.get('/api/contentObject/<%= id %>/config', function (data) {
+                    resolve(data);
+                }).fail(function (error) {
+                    console.log(error);
+                    reject(error);
+                });
             });
         }
-        } catch (error) {
-        // Handle any network or server errors
-        console.error('Error uploading package:', error);
-        displayMessage('An error occurred while uploading the package.','error',"messageBanner");
-        }
-    }
-    async function deletePackage(deleteUrl) {
-        try {
-            // Send a DELETE request to delete the package
-            const response = await fetch(deleteUrl, {
-                method: 'DELETE',
+
+        async function getContentObjectData() {
+            return new Promise((resolve, reject) => {
+                $.get('/api/contentObject/<%= id %>', function (data) {
+                    resolve(data);
+                }).fail(function (error) {
+                    reject(error);
+                });
             });
-
-            if (response.ok) {
-                displayMessage('Package deleted successfully','success',"messageBanner");
-                // Call the displayPackages() function to update the package list
-                displayPackages();
-            } else {
-                displayMessage('Error deleting package:', response.statusText,"messageBanner");
-            }
-        } catch (error) {
-            displayMessage('Error deleting package: '+error,'error',"messageBanner");
         }
-    }
-    // Function to get and display the list of packages
-  async function displayPackages() {
-    const courseId = '<%= id %>';
 
-    try {
-      // Make a GET request to fetch the list of build packages
-      const buildResponse = await fetch(`/course/${courseId}/packages/build`, {
-        method: 'GET',
-      });
+        // Function to handle package upload
+        async function resetProgress() {
+            try {
+                // Make a POST request to reset page-level progress
+                const response = await fetch(`/course/` + courseId + `/resetPageLevelProgress`, {
+                    method: 'POST',
+                });
 
-      // Make a GET request to fetch the list of source packages
-      const sourceResponse = await fetch(`/course/${courseId}/packages/source`, {
-        method: 'GET',
-      });
-
-      if (buildResponse.ok && sourceResponse.ok) {
-        const buildData = await buildResponse.json();
-        const sourceData = await sourceResponse.json();
-
-        // Display BUILD packages
-        displayPackageSection(buildData.packages, courseId, 'build');
-
-        // Display source packages
-        displayPackageSection(sourceData.packages, courseId, 'source');
-      } else {
-        displayMessage('Error fetching packages','error',"messageBanner");
-      }
-    } catch (error) {
-      console.error('Error fetching packages:', error);
-      displayMessage('<p>An error occurred while fetching packages.</p>','error',"messageBanner");
-    }
-  }
-
-  // Function to display a package section
-  function displayPackageSection(packages, courseId, packageType) {
-    let html = '';
-    var count = 0;
-    packages.forEach((packageFileName) => {
-        const packageDateTime = new Date(parseInt(packageFileName.split('-')[1], 10));
-        const formattedDateTime = packageDateTime.toLocaleString();
-
-        const downloadLink = `/course/${courseId}/packages/${packageType}/${packageFileName}`;
-        const deleteLink = `/course/${courseId}/packages/delete/${packageType}/${packageFileName}`;
-        const latestLink = `/course/${courseId}/packages/${packageType}/latest`;
-
-        if (count == 0) {
-            countText = '<a href="'+latestLink+'">latest</a>';
-        } else {
-            countText = count;
-        }
-        html += `
-        <tr class="package-entry">
-            <td>${countText}</td>
-            <td>${formattedDateTime}</td>
-            <td><a href="${downloadLink}" target="_blank">Download</a></td>
-            <td><a href="#" onclick="deletePackage('${deleteLink}')">Delete</a></td>
-        </tr>
-        `;
-        count = count -1;
-    });
-    const packagesSection = document.getElementById(packageType + "-packages");
-    packagesSection.innerHTML = html;
-  }
-
-    // Function to display a message banner
-    function displayMessage(message, messageType,element) {
-        const messageBanner = document.getElementById(element);
-        messageBanner.innerHTML = message;
-        messageBanner.className = messageType;
-        setTimeout(() => {
-        messageBanner.innerHTML = '';
-        messageBanner.className = '';
-        }, 10000); // Clear the message after 5 seconds
-    }
-    function removeHTML(str){
-        var tmp = document.createElement("DIV");
-        tmp.innerHTML = str;
-        return tmp.textContent || tmp.innerText || "";
-    }
-   function addRowToTable(id,key,value,link) {
-    var tr = document.createElement('tr');
-    var td1 = document.createElement('td');
-    var td2 = document.createElement('td');
-    td1.innerHTML = key;
-    if (link) {
-        var anchor = document.createElement("a");
-        anchor.setAttribute("href",link);
-        anchor.setAttribute("target","_blank");
-        anchor.innerHTML = value;
-        td2.append(anchor);
-    } else {
-        td2.innerHTML = value;
-    }
-    tr.append(td1);
-    tr.append(td2);
-    document.getElementById(id).append(tr);
-   }
-   function addExtensionDataToTable(id,data) {
-    var row = document.createElement('tr');
-    var name = document.createElement('td');
-    var version = document.createElement('td');
-    name.innerHTML = data.name;
-    version.innerHTML = data.version;
-    row.append(name);
-    row.append(version);
-    document.getElementById(id).append(row);
-   }
-   function addDataToTable(id,data) {
-    var row = document.createElement('tr');
-    var number = document.createElement('td')
-    var icon = document.createElement('td')
-    var title = document.createElement('td')
-    var words = document.createElement('td');
-    if (data.isQuestion && data.activityID) {
-        var a = document.createElement("a");
-        a.setAttribute("href","/questionSummary?activity="+data.activityID+"%23/id/"+data.id);
-        a.setAttribute("target","_blank");
-        a.innerHTML = data.title;
-        title.append(a);
-    } else {
-        title.innerHTML = data.title;
-    }
-    number.innerHTML = data.count;
-    var img = document.createElement('img');
-    img.setAttribute("src","/images/component-icons/icon-"+data.type+".png");
-    img.setAttribute("onerror","this.onerror=null;this.src='/images/component-icons/icon-default.png'")
-    img.setAttribute("alt",data.type);
-    icon.append(img);
-    var p = document.createElement("span");
-    p.style.paddingLeft = "10px";
-    p.innerHTML = data.type;
-    icon.append(p);
-    words.innerHTML = data.wordCount;
-    row.append(number);
-    row.append(icon);
-    row.append(title);
-    row.append(words);
-    document.getElementById(id).append(row);
-   }
-   $(document).ready( function () {
-        var activityID = null;
-        var isXAPI = false;
-        var courseId = "";
-        displayPackages();
-        $.get('/api/contentObject/<%= id %>/config', function(data) {
-            addRowToTable("course-factbox","ID",data._courseId);
-            courseId = data._courseId;
-            if (data._themePreset) {
-                addRowToTable("course-factbox","Theme",data._themePreset.parentTheme);
-                addRowToTable("course-factbox","Theme Preset",data._themePreset.displayName);
-            } else {
-                addRowToTable("course-factbox","Theme",data._theme);
-            }
-            addRowToTable("course-factbox","Require content completed",data._completionCriteria._requireContentCompleted);
-            addRowToTable("course-factbox","Require assessment completed",data._completionCriteria._requireAssessmentCompleted);
-            if (data._extensions._xapi) {
-                addRowToTable("xapi-factbox","Type","XAPI");
-                if (!data._extensions._xapi || data._extensions._xapi._isEnabled == "false") {
-                    addRowToTable("xapi-factbox","Enabled","false");
+                if (response.ok) {
+                    // Reset was successful
+                    response.json().then((data) => {
+                        // Display a success message from the server
+                        displayMessage(data.message, 'success', "resetMessageBanner");
+                        // Optionally, update the UI or perform additional actions
+                    });
                 } else {
-                    isXAPI = true;
-                    addRowToTable("xapi-factbox","Enabled","true");
-                    addRowToTable("xapi-factbox","Activity ID",data._extensions._xapi._activityID);
-                    activityID = data._extensions._xapi._activityID;
-                    addRowToTable("xapi-factbox","Endpoint",data._extensions._xapi._endpoint);
+                    // Handle the case where the reset fails
+                    response.json().then((data) => {
+                        displayMessage('Page-level progress reset failed: ' + data.error, 'error', "resetMessageBanner");
+                    });
+                }
+            } catch (error) {
+                // Handle any network or server errors
+                console.error('Error resetting page-level progress:', error);
+                displayMessage('An error occurred while resetting page-level progress.', 'error', "resetMessageBanner");
+            }
+        }
+
+        async function uploadPackage(packageType) {
+            const inputElement = document.getElementById(`${packageType}FileInput`);
+            const file = inputElement.files[0];
+            inputElement.value = '';
+
+            if (!file) {
+                // Handle the case where no file is selected
+                displayMessage('Please select a file.', 'error', "messageBanner");
+                return;
+            }
+
+            // Create a FormData object to send the file
+            const formData = new FormData();
+            formData.append(packageType, file);
+
+            try {
+                // Make a POST request to upload the package
+                const response = await fetch(`/course/`+contentObjectId+`/packages/upload/`, {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (response.ok) {
+                    // Display a success message
+                    displayMessage(`Package (${packageType}) uploaded successfully.`, 'success', "messageBanner");
+                    displayPackages();
+
+                    // Optionally, update the relevant section to show the uploaded file
+                } else {
+                    // Handle the case where the upload fails
+                    response.json().then((data) => {
+                        displayMessage('Package upload failed: ' + data.error, 'error', "messageBanner");
+                    });
+                }
+            } catch (error) {
+                // Handle any network or server errors
+                console.error('Error uploading package:', error);
+                displayMessage('An error occurred while uploading the package.', 'error', "messageBanner");
+            }
+        }
+
+        async function deletePackage(deleteUrl) {
+            try {
+                // Send a DELETE request to delete the package
+                const response = await fetch(deleteUrl, {
+                    method: 'DELETE',
+                });
+
+                if (response.ok) {
+                    displayMessage('Package deleted successfully', 'success', "messageBanner");
+                    // Call the displayPackages() function to update the package list
+                    displayPackages();
+                } else {
+                    displayMessage('Error deleting package:', response.statusText, "messageBanner");
+                }
+            } catch (error) {
+                displayMessage('Error deleting package: ' + error, 'error', "messageBanner");
+            }
+        }
+
+        // Function to get and display the list of packages
+        async function displayPackages() {
+
+            try {
+                // Make a GET request to fetch the list of build packages
+                const buildResponse = await fetch(`/course/${contentObjectId}/packages/build`, {
+                    method: 'GET',
+                });
+
+                // Make a GET request to fetch the list of source packages
+                const sourceResponse = await fetch(`/course/${contentObjectId}/packages/source`, {
+                    method: 'GET',
+                });
+
+                if (buildResponse.ok && sourceResponse.ok) {
+                    const buildData = await buildResponse.json();
+                    const sourceData = await sourceResponse.json();
+
+                    // Display BUILD packages
+                    displayPackageSection(buildData.packages, contentObjectId, 'build');
+
+                    // Display source packages
+                    displayPackageSection(sourceData.packages, contentObjectId, 'source');
+                } else {
+                    displayMessage('Error fetching packages', 'error', "messageBanner");
+                }
+            } catch (error) {
+                console.error('Error fetching packages:', error);
+                displayMessage('<p>An error occurred while fetching packages.</p>', 'error', "messageBanner");
+            }
+        }
+
+        // Function to display a package section
+        function displayPackageSection(packages, contentObjectId, packageType) {
+            let html = '';
+            var count = 0;
+            packages.forEach((packageFileName) => {
+                const packageDateTime = new Date(parseInt(packageFileName.split('-')[1], 10));
+                const formattedDateTime = packageDateTime.toLocaleString();
+
+                const downloadLink = `/course/${contentObjectId}/packages/${packageType}/${packageFileName}`;
+                const deleteLink = `/course/${contentObjectId}/packages/delete/${packageType}/${packageFileName}`;
+                const latestLink = `/course/${contentObjectId}/packages/${packageType}/latest`;
+
+                if (count == 0) {
+                    countText = '<a href="' + latestLink + '">latest</a>';
+                } else {
+                    countText = count;
+                }
+                html += `
+                    <tr class="package-entry">
+                        <td>${countText}</td>
+                        <td>${formattedDateTime}</td>
+                        <td><a href="${downloadLink}" target="_blank">Download</a></td>
+                        <td><a href="#" onclick="deletePackage('${deleteLink}')">Delete</a></td>
+                    </tr>
+                    `;
+                count = count - 1;
+            });
+            const packagesSection = document.getElementById(packageType + "-packages");
+            packagesSection.innerHTML = html;
+        }
+
+        // Function to display a message banner
+        function displayMessage(message, messageType, element) {
+            const messageBanner = document.getElementById(element);
+            messageBanner.innerHTML = message;
+            messageBanner.className = messageType;
+            setTimeout(() => {
+                messageBanner.innerHTML = '';
+                messageBanner.className = '';
+            }, 10000); // Clear the message after 5 seconds
+        }
+
+        function removeHTML(str) {
+            var tmp = document.createElement("DIV");
+            tmp.innerHTML = str;
+            return tmp.textContent || tmp.innerText || "";
+        }
+
+        function addRowToTable(id, key, value, link) {
+            var tr = document.createElement('tr');
+            var td1 = document.createElement('td');
+            var td2 = document.createElement('td');
+            td1.innerHTML = key;
+            if (link) {
+                var anchor = document.createElement("a");
+                anchor.setAttribute("href", link);
+                anchor.setAttribute("target", "_blank");
+                anchor.innerHTML = value;
+                td2.append(anchor);
+            } else {
+                td2.innerHTML = value;
+            }
+            tr.append(td1);
+            tr.append(td2);
+            document.getElementById(id).append(tr);
+        }
+
+        function addExtensionDataToTable(id, data) {
+            var row = document.createElement('tr');
+            var name = document.createElement('td');
+            var version = document.createElement('td');
+            name.innerHTML = data.name;
+            version.innerHTML = data.version;
+            row.append(name);
+            row.append(version);
+            document.getElementById(id).append(row);
+        }
+
+        function addDataToTable(id, data) {
+            var row = document.createElement('tr');
+            var number = document.createElement('td')
+            var icon = document.createElement('td')
+            var title = document.createElement('td')
+            var words = document.createElement('td');
+            if (data.isQuestion && data.activityID) {
+                var a = document.createElement("a");
+                a.setAttribute("href", "/questionSummary?activity=" + data.activityID + "%23/id/" + data.id);
+                a.setAttribute("target", "_blank");
+                a.innerHTML = data.title;
+                title.append(a);
+            } else {
+                title.innerHTML = data.title;
+            }
+            number.innerHTML = data.count;
+            var img = document.createElement('img');
+            img.setAttribute("src", "/images/component-icons/icon-" + data.type + ".png");
+            img.setAttribute("onerror", "this.onerror=null;this.src='/images/component-icons/icon-default.png'")
+            img.setAttribute("alt", data.type);
+            icon.append(img);
+            var p = document.createElement("span");
+            p.style.paddingLeft = "10px";
+            p.innerHTML = data.type;
+            icon.append(p);
+            words.innerHTML = data.wordCount;
+            row.append(number);
+            row.append(icon);
+            row.append(title);
+            row.append(words);
+            document.getElementById(id).append(row);
+        }
+
+        function handleDocumentReady() {
+            var activityID = null;
+            var isXAPI = false;
+
+            displayPackages();
+            addRowToTable("course-factbox", "ID", courseData._courseId);
+            if (courseData._themePreset) {
+                addRowToTable("course-factbox", "Theme", courseData._themePreset.parentTheme);
+                addRowToTable("course-factbox", "Theme Preset", courseData._themePreset.displayName);
+            } else {
+                addRowToTable("course-factbox", "Theme", courseData._theme);
+            }
+            if (courseData._completionCriteria) {
+                addRowToTable("course-factbox", "Require content completed", courseData._completionCriteria._requireContentCompleted);
+                addRowToTable("course-factbox", "Require assessment completed", courseData._completionCriteria._requireAssessmentCompleted);
+            }
+            if (courseData._extensions) {
+                if (courseData._extensions._xapi) {
+                    addRowToTable("xapi-factbox", "Type", "XAPI");
+                    if (!courseData._extensions._xapi || courseData._extensions._xapi._isEnabled == "false") {
+                        addRowToTable("xapi-factbox", "Enabled", "false");
+                    } else {
+                        isXAPI = true;
+                        addRowToTable("xapi-factbox", "Enabled", "true");
+                        addRowToTable("xapi-factbox", "Activity ID", courseData._extensions._xapi._activityID);
+                        activityID = courseData._extensions._xapi._activityID;
+                        addRowToTable("xapi-factbox", "Endpoint", courseData._extensions._xapi._endpoint);
+                    }
+                }
+                if (courseData._extensions._spoor) {
+                    addRowToTable("xapi-factbox", "Type", "SCORM");
+                    spoor = courseData._extensions._spoor;
+                    addRowToTable("xapi-factbox", "Enabled", spoor._isEnabled);
+                    addRowToTable("xapi-factbox", "on training criteria met", spoor._reporting._onTrackingCriteriaMet);
+                    addRowToTable("xapi-factbox", "on assessment failure", spoor._reporting._onAssessmentFailure);
                 }
             }
-            if(data._extensions._spoor) {
-                addRowToTable("xapi-factbox","Type","SCORM");
-                spoor = data._extensions._spoor;
-                addRowToTable("xapi-factbox","Enabled",spoor._isEnabled);
-                addRowToTable("xapi-factbox","on training criteria met",spoor._reporting._onTrackingCriteriaMet);
-                addRowToTable("xapi-factbox","on assessment failure",spoor._reporting._onAssessmentFailure);
+            for (const [key, value] of Object.entries(courseData._enabledExtensions)) {
+                addExtensionDataToTable("extensions_table_body", value);
             }
-            for (const [key, value] of Object.entries(data._enabledExtensions)) {
-               addExtensionDataToTable("extensions_table_body",value);
-            }
-        });
-        $.get('/api/contentObject/<%= id %>', function(data) {
             if (isXAPI) {
-                var dashboardLink = "/course/"+data.id+"/dashboard";
-                addRowToTable("xapi-factbox","Dashboard","View XAPI Dashboard",dashboardLink);
+                var dashboardLink = "/course/" + objectData.id + "/dashboard";
+                addRowToTable("xapi-factbox", "Dashboard", "View XAPI Dashboard", dashboardLink);
             }
             var count = 1;
             var totalAssessmentWeight = 0;
-            document.getElementById("main-title").innerHTML = data.title;
-            var aatEditLink = "<%= aatBase %>#editor/"+courseId+"/page/"+data.id;
-            addRowToTable("factbox","ID",data.id,aatEditLink);
-            addRowToTable("factbox","# articles",data.articleCount);
-            addRowToTable("factbox","# blocks",data.blockCount);
-            addRowToTable("factbox","# asessments",data.assessmentCount);
-            addRowToTable("factbox","# questions",data.questionCount);
-            addRowToTable("factbox","# words",data.wordCount,"/course/"+data.id+"/transcript");
-            document.getElementById("description").innerHTML = data.description;
+            document.getElementById("main-title").innerHTML = objectData.title;
+            var aatEditLink = "<%= aatBase %>#editor/" + courseId + "/page/" + objectData.id;
+            addRowToTable("factbox", "ID", objectData.id, aatEditLink);
+            addRowToTable("factbox", "# articles", objectData.articleCount);
+            addRowToTable("factbox", "# blocks", objectData.blockCount);
+            addRowToTable("factbox", "# asessments", objectData.assessmentCount);
+            addRowToTable("factbox", "# questions", objectData.questionCount);
+            addRowToTable("factbox", "# words", objectData.wordCount, "/course/" + objectData.id + "/transcript");
+            document.getElementById("description").innerHTML = objectData.description;
             //Sort the articles here
-            delete(data.articles.length);
-            var articles = Object.keys(data.articles).map((key) => data.articles[key]);
+            delete (objectData.articles.length);
+            var articles = Object.keys(objectData.articles).map((key) => objectData.articles[key]);
             articles = articles.sort((a, b) => {
                 if (a.sortOrder < b.sortOrder) {
                     return -1;
                 }
             });
-            for (var i=0;i<articles.length;i++) {
+            for (var i = 0; i < articles.length; i++) {
                 var article = articles[i];
                 var local = {};
                 local.type = "article";
@@ -400,65 +454,65 @@
                 local.id = article.id;
                 local.wordCount = "-";
                 local.count = "Article-" + i;
-                addDataToTable("section_table_body",local);
+                addDataToTable("section_table_body", local);
                 blocks = article.blocks;
-                delete(blocks.length);
+                delete (blocks.length);
                 var blocks = Object.keys(blocks).map((key) => blocks[key]);
                 blocks = blocks.sort((a, b) => {
                     if (a.sortOrder < b.sortOrder) {
                         return -1;
                     }
                 });
-//                if (typeof value == "object") {
-//                    if (value.title.trim() != "") {
-                        //addTitleToList("section_titles",value.title.trim());
-//                    }
-                    //for (const [bkey, bvalue] of Object.entries(article.blocks)) {
-                    for (var b=0;b<blocks.length;b++) {
-                        bvalue = blocks[b];
-                        var local = {};
-                        local.type = "";
-                        local.title = "";
-                        local.isQuestion = false;
-                        local.activityID = activityID;
-                        if (typeof bvalue == "object") {
-                            local.wordCount = bvalue.wordCount;
-                            if (bvalue.title.trim() != "" && bvalue.title.trim().toLowerCase() != "block title") {
-                                local.title = bvalue.title.trim();
-                            }
-                            for (const [ckey, cvalue] of Object.entries(bvalue.components)) {
-                                if (typeof cvalue == "object") {
-                                    local.wordCount += cvalue.wordCount;
-                                    if (local.type != "" && local.type.trim() == "graphic" && cvalue.type.trim() != "graphic") {
-                                      local.type = cvalue.type;
-                                      local.isQuestion = cvalue.isQuestion;
-                                      local.id = cvalue.id;
-                                    } else if (local.type == "") {
-                                      local.type = cvalue.type;
-                                      local.isQuestion = cvalue.isQuestion;
-                                      local.id = cvalue.id;
-                                    }
-                                    if (cvalue.title.trim() != "" && local.title == "" && cvalue.title.trim().toLowerCase() != "component title") {
-                                        local.title = cvalue.title.trim();
-                                    }
+                //                if (typeof value == "object") {
+                //                    if (value.title.trim() != "") {
+                //addTitleToList("section_titles",value.title.trim());
+                //                    }
+                //for (const [bkey, bvalue] of Object.entries(article.blocks)) {
+                for (var b = 0; b < blocks.length; b++) {
+                    bvalue = blocks[b];
+                    var local = {};
+                    local.type = "";
+                    local.title = "";
+                    local.isQuestion = false;
+                    local.activityID = activityID;
+                    if (typeof bvalue == "object") {
+                        local.wordCount = bvalue.wordCount;
+                        if (bvalue.title.trim() != "" && bvalue.title.trim().toLowerCase() != "block title") {
+                            local.title = bvalue.title.trim();
+                        }
+                        for (const [ckey, cvalue] of Object.entries(bvalue.components)) {
+                            if (typeof cvalue == "object") {
+                                local.wordCount += cvalue.wordCount;
+                                if (local.type != "" && local.type.trim() == "graphic" && cvalue.type.trim() != "graphic") {
+                                    local.type = cvalue.type;
+                                    local.isQuestion = cvalue.isQuestion;
+                                    local.id = cvalue.id;
+                                } else if (local.type == "") {
+                                    local.type = cvalue.type;
+                                    local.isQuestion = cvalue.isQuestion;
+                                    local.id = cvalue.id;
+                                }
+                                if (cvalue.title.trim() != "" && local.title == "" && cvalue.title.trim().toLowerCase() != "component title") {
+                                    local.title = cvalue.title.trim();
                                 }
                             }
                         }
-                        if (local.type != "" && local.title !="") {
-                            local.count = count;
-                            addDataToTable("section_table_body",local);
-                            count += 1;
-                        } else if (local.title != "") {
-                            local.count = count;
-                            local.type = "default";
-                            addDataToTable("section_table_body",local);
-                            count += 1;
-                        }
                     }
+                    if (local.type != "" && local.title != "") {
+                        local.count = count;
+                        addDataToTable("section_table_body", local);
+                        count += 1;
+                    } else if (local.title != "") {
+                        local.count = count;
+                        local.type = "default";
+                        addDataToTable("section_table_body", local);
+                        count += 1;
+                    }
+                }
                 //}
             }
-            addRowToTable("factbox","total assessmentWeight",totalAssessmentWeight);
-        });
-    });
-</script>
-<%- include('../partials/footer') %>
+            addRowToTable("factbox", "total assessmentWeight", totalAssessmentWeight);
+        }
+        loadData();
+    </script>
+    <%- include('../partials/footer') %>
