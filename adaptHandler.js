@@ -1,18 +1,62 @@
 var ObjectId = require('mongodb').ObjectID;
+const { ObjectID } = require('bson');
 var json2csv = require('json2csv'); // Library to create CSV for output
-var promiseCount = 0;
 
-exports.getObjectById = function(req,res,dbo,collection,id) {
-	var dbConnect = dbo.getDb();
+// Function to retrieve an object by ID and handle tags
+async function getObjectById(dbConnect, collection, id) {
 	collection = collection + "s";
-	dbConnect
-		.collection(collection)
-        .find({"_id":new ObjectId(id)})
-        .toArray(function(err,items) {
-        	res.set('Content-Type', 'application/json');
-        	res.send(JSON.stringify(items[0], null, 4));
-        });
-}
+
+	return new Promise(async (resolve, reject) => {
+	  try {
+		const items = await dbConnect.collection(collection).find({ "_id": new ObjectId(id) }).toArray();
+
+		if (items.length === 0) {
+		  resolve(null); // Object not found, return null
+		} else {
+		  const objectData = items[0];
+
+		  // Check if the object has a tags array
+		  if (objectData.tags && Array.isArray(objectData.tags) && objectData.tags.length > 0) {
+			const tagIds = objectData.tags.map(tag => new ObjectId(tag));
+
+			// Query the tags collection to get tag titles
+			const tagItems = await dbConnect.collection("tags").find({ "_id": { $in: tagIds } }).toArray();
+
+			// Convert the tags array to objects with _tagId and title
+			const tagsWithTitles = tagItems.map(tagItem => ({ _tagId: tagItem._id, title: tagItem.title }));
+
+			// Update the objectData with the tags with titles
+			objectData.tags = tagsWithTitles;
+		  }
+
+		  resolve(objectData);
+		}
+	  } catch (err) {
+		reject(err);
+	  }
+	});
+  }
+
+  // Function to handle JSON response
+  exports.getObjectById = async function(req, res, dbo, collection, id) {
+	const dbConnect = dbo.getDb();
+
+	try {
+	  const objectData = await getObjectById(dbConnect, collection, id);
+
+	  if (!objectData) {
+		console.log("Object not found");
+		return res.status(404).json({ error: "Object not found" });
+	  }
+
+	  res.set('Content-Type', 'application/json');
+	  res.send(JSON.stringify(objectData, null, 4));
+	} catch (err) {
+	  console.error("Error:", err);
+	  res.status(500).json({ error: "An error occurred" });
+	}
+  };
+
 
 exports.findObjectsWithParentId = function(req,res,dbo,collection,parent_id) {
 	var dbConnect = dbo.getDb();
@@ -26,354 +70,303 @@ exports.findObjectsWithParentId = function(req,res,dbo,collection,parent_id) {
         });
 }
 
-exports.getObjectsFromCollection = function(req,res,dbo,collection) {
-	var dbConnect = dbo.getDb();
-	dbConnect
-		.collection(collection)
-        .find({})
-        .toArray(function(err,items) {
-        	// TODO error handling
-        	res.set('Content-Type', 'application/json');
-        	res.send(JSON.stringify(items, null, 4));
-        });
+// Function to retrieve items from the collection
+async function getItemsFromCollection(dbConnect, collection) {
+	return await dbConnect.collection(collection).find({}).toArray();
 }
 
-// coursesSummary
+  // Function to handle JSON response
+exports.getObjectsFromCollection = async function(req, res, dbo, collection) {
+	const dbConnect = dbo.getDb();
 
-var promises = [];
-var output = {};
-output.courses = {};
+	try {
+	  const items = await getItemsFromCollection(dbConnect, collection);
+	  res.set('Content-Type', 'application/json');
+	  res.send(JSON.stringify(items, null, 4));
+	} catch (err) {
+	  console.error("Error:", err);
+	  res.status(500).json({ error: "An error occurred" });
+	}
+};
 
-function removeHTML(str){
-	if (str) {
-		return str.replace(/(<([^>]+)>)/gi, "");
-	} else	{
-		return "";
-	}
-    /*
-    var tmp = document.createElement("DIV");
-    tmp.innerHTML = str;
-    return tmp.textContent || tmp.innerText || "";
-    */
-}
+function stripHtmlTags(input) {
+	return input.replace(/<[^>]*>/g, " ");
+  }
 
-function processData(dbo,data,parent_id,collection,path) {
-	/*
-	if (parent_id == "64761c44b38aaf6b93dd9074") {
-		console.log("in processData for parent 64761c44b38aaf6b93dd9074 with collection" + collection + " and data:");
-		console.log(JSON.stringify(data));
+async function getWordCount(object) {
+	var count = 0;
+
+	// Calculate word count for displayTitle and body
+	if (object.displayTitle && typeof object.displayTitle === 'string') {
+	  count += object.displayTitle.split(/\s+/).length;
 	}
-	*/
-	var local = {};
-	//local.length = data.length;
-	var paths = path.toString().split("_");
-	if (collection == "articles") {
-		output["courses"][paths[0]]["contentobjects"][paths[1]]["articleCount"] = data.length;
+
+	if (object.body && typeof object.body === 'string') {
+	  // Strip HTML tags from the body before calculating word count
+	  const bodyWithoutHtml = stripHtmlTags(object.body);
+	  count += bodyWithoutHtml.split(/\s+/).length;
 	}
-	if (collection == "blocks") {
-		if (!output["courses"][paths[0]]["contentobjects"][paths[1]]["blockCount"]) {
-			output["courses"][paths[0]]["contentobjects"][paths[1]]["blockCount"] = 0;
+
+	if (
+	  object._extensions &&
+	  object._extensions._extra &&
+	  object._extensions._extra._items &&
+	  Array.isArray(object._extensions._extra._items)
+	) {
+	  object._extensions._extra._items.forEach(item => {
+		if (item.title && typeof item.title === 'string') {
+		  count += item.title.split(/\s+/).length;
 		}
-		output["courses"][paths[0]]["contentobjects"][paths[1]]["blockCount"] += data.length;
+
+		if (item.body && typeof item.body === 'string') {
+		  // Strip HTML tags from the item's body before calculating word count
+		  const itemBodyWithoutHtml = stripHtmlTags(item.body);
+		  count += itemBodyWithoutHtml.split(/\s+/).length;
+		}
+	  });
 	}
-	for(i=0;i<data.length;i++) {
-		var id = data[i]._id;
-		local[id] = {};
-		local[id].wordCount = 0;
-		local[id].title = data[i].title;
-		local[id].id = id;
-		if (data[i]._sortOrder) { local[id].sortOrder = data[i]._sortOrder; }
-		local[id].displayTitle = data[i].displayTitle;
-		local[id].description = data[i].body;
-		local[id].wordCount += removeHTML(data[i].displayTitle).split(" ").length + removeHTML(data[i].body).split(" ").length;
-		
-		if (collection == "components") {
-			local[id].type = data[i]._component;
-			try {
-				if (data[i].properties._items) {
-					items = data[i].properties._items;
-					for (var ci=0;ci<items.length;ci++){
-						local[id].wordCount += removeHTML(items[ci].title).split(" ").length;
-						local[id].wordCount += removeHTML(items[ci].body).split(" ").length;
-						local[id].wordCount += removeHTML(items[ci].text).split(" ").length;
-					}
-				}
-			} catch(err) {
-				if (parent_id == "6438250bb38aaf6b93dd83a7") {
-					console.log("error on parent: " + parent_id);
-					console.log(err);
-				}
+
+	if (object.properties && object.properties._items && Array.isArray(object.properties._items)) {
+	  object.properties._items.forEach(propertyItem => {
+		if (propertyItem.displayTitle && typeof propertyItem.displayTitle === 'string') {
+		  count += propertyItem.displayTitle.split(/\s+/).length;
+		}
+
+		if (propertyItem.body && typeof propertyItem.body === 'string') {
+		  // Strip HTML tags from the property item's body before calculating word count
+		  const propertyBodyWithoutHtml = stripHtmlTags(propertyItem.body);
+		  count += propertyBodyWithoutHtml.split(/\s+/).length;
+		}
+
+		if (propertyItem.text && typeof propertyItem.text === 'string') {
+		  count += propertyItem.text.split(/\s+/).length;
+		}
+	  });
+	}
+
+	// Calculate word count for properties._feedback.correct and strip HTML tags
+	if (
+	  object.properties &&
+	  object.properties._feedback &&
+	  object.properties._feedback.correct &&
+	  typeof object.properties._feedback.correct === 'string'
+	) {
+	  const feedbackCorrectWithoutHtml = stripHtmlTags(object.properties._feedback.correct);
+	  count += feedbackCorrectWithoutHtml.split(/\s+/).length;
+	}
+	return count;
+}
+
+/*
+ * New function 2024-01-03
+ */
+// Function to build contentData
+async function buildContentData(dbConnect, id) {
+	const contentCollection = "contentobjects";
+	const articlesCollection = "articles";
+	const blocksCollection = "blocks";
+	const componentsCollection = "components";
+
+	const contentData = await dbConnect.collection(contentCollection).findOne({ "_id": new ObjectId(id) });
+
+	if (!contentData) {
+	  throw new Error("Content object not found");
+	}
+
+	const articlesData = await dbConnect.collection(articlesCollection).find({ "_parentId": new ObjectId(id) }).toArray();
+	contentData.totalArticleCount = articlesData.length;
+	contentData.totalBlockCount = 0;
+	contentData.totalComponentCount = 0;
+	contentData.assessmentCount = 0;
+	contentData.questionCount = 0;
+	contentData.wordCount = 0;
+
+	for (const article of articlesData) {
+	  try {
+		if (article._extensions._assessment._isEnabled === true) {
+		  contentData.assessmentCount += 1;
+		}
+	  } catch (err) {}
+
+	  article.wordCount = await getWordCount(article);
+	  contentData.wordCount += article.wordCount;
+
+	  const blocksData = await dbConnect.collection(blocksCollection).find({ "_parentId": new ObjectId(article._id) }).toArray();
+	  article.totalComponentCount = 0;
+
+	  for (const block of blocksData) {
+		block.wordCount = await getWordCount(block);
+		contentData.wordCount += block.wordCount;
+		const componentsData = await dbConnect.collection(componentsCollection).find({ "_parentId": new ObjectId(block._id) }).toArray();
+
+		for (const component of componentsData) {
+		  component.wordCount = await getWordCount(component);
+		  block.wordCount += component.wordCount;
+		  contentData.wordCount += component.wordCount;
+		  component.isQuestion = false;
+		  try {
+			if (component.properties._feedback) {
+			  component.isQuestion = true;
+			  contentData.questionCount += 1;
 			}
-			try {
-				if (data[i].properties._feedback) {
-					local[id].isQuestion = true;
-					if (!output["courses"][paths[0]]["contentobjects"][paths[1]]["questionCount"]) {
-						output["courses"][paths[0]]["contentobjects"][paths[1]]["questionCount"] = 0;
-					}
-					output["courses"][paths[0]]["contentobjects"][paths[1]]["questionCount"] += 1;
-					local[id].wordCount += removeHTML(data[i].properties._feedback.correct).split(" ").length;
-					local[id].wordCount += removeHTML(data[i].properties._feedback._incorrect.final).split(" ").length;
-				}
-			} catch(err) {
-				if (parent_id == "6438250bb38aaf6b93dd83a7") {
-					console.log("error on parent: " + parent_id);
-					console.log(err);
-				}
-			}
+		  } catch (err) {}
 		}
-		
-		if (paths.length > 1) {
-			output["courses"][paths[0]]["contentobjects"][paths[1]]["wordCount"] += local[id].wordCount;
-		}
-		
-		if (collection == "contentobjects") {
-			promiseCount = promiseCount + 1;
-			getChildren(dbo,id,"articles",path + "_" + id);
-		}
-		if (collection == "articles") {
-			if (!output["courses"][paths[0]]["contentobjects"][paths[1]]["assessmentCount"]) {
-				output["courses"][paths[0]]["contentobjects"][paths[1]]["assessmentCount"] = 0;
-			}
-			try {
-				if (data[i]._extensions._assessment._isEnabled) {
-					local[id].assessment = data[i]._extensions._assessment;
-					output["courses"][paths[0]]["contentobjects"][paths[1]]["assessmentCount"] += 1;
-				}
-			} catch(err) {}
-			promiseCount = promiseCount + 1;
-			getChildren(dbo,id,"blocks",path + "_" + id);
-		}
-		if (collection == "blocks") {
-			promiseCount = promiseCount + 1;
-			getChildren(dbo,id,"components",path + "_" + id);
-		}
-		promiseCount = promiseCount - 1;
+		article.wordCount += block.wordCount;
+		block.components = componentsData;
+		block.componentCount = componentsData.length;
+		article.totalComponentCount += block.componentCount;
+		contentData.totalComponentCount += block.componentCount;
+	  }
+	  blocksData.sort((a, b) => a._sortOrder - b._sortOrder);
+	  article.blocks = blocksData;
+	  contentData.totalBlockCount += blocksData.length;
 	}
+	articlesData.sort((a, b) => a._sortOrder - b._sortOrder);
+	contentData.articles = articlesData;
 
-	if (collection == "contentobjects") {
-		output["courses"][parent_id][collection] = local;
-	} else {
-		if (collection == "articles") {
-			output["courses"][paths[0]]["contentobjects"][paths[1]]["articles"] = local;
-		} else if (collection == "blocks") {
-			output["courses"][paths[0]]["contentobjects"][paths[1]]["articles"][paths[2]]["blocks"] = local;
-		} else if (collection == "components") {
-			output["courses"][paths[0]]["contentobjects"][paths[1]]["articles"][paths[2]]["blocks"][paths[3]]["components"] = local;
-		} else {
-			output[collection][parent_id] = local;
-		}
+	return contentData;
+}
+
+async function buildCache(dbConnect) {
+	const contentCollection = "contentobjects";
+
+	try {
+	  // Step 1: Get all contentobjects
+	  const contentObjects = await getItemsFromCollection(dbConnect, contentCollection);
+
+	  const contentObjectsData = await Promise.all(contentObjects.map(async (contentObject) => {
+		// Step 2: Get courseData
+		const courseData = await getObjectById(dbConnect, "course", contentObject._courseId);
+
+		// Step 3: Build contentData
+		const contentData = await buildContentData(dbConnect, contentObject._id);
+
+		// Step 4: Collate data
+		const tagTitles = (courseData.tags || []).map(tag => tag.title).join(', ');
+		const collatedContentObject = {
+		  _id: contentObject._id,
+		  _courseId: contentObject._courseId,
+		  courseTitle: courseData.displayTitle,
+		  title: contentObject.displayTitle,
+		  tags: tagTitles,
+		  totalArticleCount: contentData.totalArticleCount,
+		  totalBlockCount: contentData.totalBlockCount,
+		  totalComponentCount: contentData.totalComponentCount,
+		  assessmentCount: contentData.assessmentCount,
+		  questionCount: contentData.questionCount,
+		  wordCount: contentData.wordCount,
+		};
+
+		return collatedContentObject;
+	  }));
+
+	  return contentObjectsData;
+	} catch (err) {
+	  throw err;
 	}
 }
 
-function makeCSVOutput(output) {
-	var csvOutput = [];
-	courses = output.courses;
-	for (const [key, value] of Object.entries(courses)) {
-		var courseTitle = value.title;
-		var contentObjects = value.contentobjects;
-		for (const [cokey, covalue] of Object.entries(contentObjects)) {
- 			var item = {};
- 			item.courseTitle = courseTitle;
- 			item.title = covalue.title;
- 			item.description = covalue.description;
- 			item.articleCount = covalue.articleCount;
- 			item.blockCount = covalue.blockCount;
- 			item.wordCount = covalue.wordCount;
- 			item.assessmentCount = covalue.assessmentCount;
- 			if (item.title) {
- 				csvOutput.push(item);
- 			}
- 		}
+async function updateCache(sourcedb, destinationdb) {
+	try {
+		const sourceDbConnect = sourcedb.getDb();
+		const destinationDbConnect = destinationdb.getDb();
+
+		// Step 1: Get cache data from sourceDb
+		console.log("Updating cache");
+		const cacheData = await buildCache(sourceDbConnect);
+
+		// Step 2: Delete existing data in the courseCache collection of destinationDb
+		await destinationDbConnect.collection("courseCache").deleteMany({});
+
+		// Step 3: Insert the new cache data into the courseCache collection
+		await destinationDbConnect.collection("courseCache").insertMany(cacheData);
+
+		console.log("Cache updated successfully.");
+	  } catch (err) {
+		console.error("Error:", err);
+	  }
+}
+
+exports.updateCourseCache = async function (sourcedb, destinationdb) {
+	updateCache(sourcedb,destinationdb);
+};
+
+
+exports.getCacheData = async function (req, res, sourceDb, cacheDb) {
+	try {
+	  const dbConnect = cacheDb.getDb(); // Use cacheDb as the default source
+
+	  // Check if forceUpdate is set to true in the request
+	  const forceUpdate = req.query.forceUpdate === 'true';
+
+	  if (forceUpdate) {
+		// If forceUpdate is true, update the cache and then read it
+		await updateCache(sourceDb, cacheDb); // Assuming you have an updateCache function
+	  }
+
+	  // Read all objects from the courseCache collection in cacheDb
+	  const cachedContentObjects = await dbConnect.collection("courseCache").find({}).toArray();
+
+	  // Content negotiation based on Accept header
+	  const acceptHeader = req.headers['accept'];
+
+	  if (acceptHeader.includes('text/csv')) {
+		// Respond with CSV
+		const json2csvParser = new json2csv();
+		const csvData = json2csvParser.parse(cachedContentObjects);
+
+		res.set('Content-Type', 'text/csv');
+		res.send(csvData);
+	  } else {
+		// Default to JSON
+		res.set('Content-Type', 'application/json');
+		res.json(cachedContentObjects);
+	  }
+	} catch (err) {
+	  console.error("Error:", err);
+	  res.status(500).json({ error: "An error occurred" });
 	}
-	return csvOutput;
-}
+};
 
-function setPromiseInterval(req,res) {
-	var resolve = setInterval(() => {
-		console.log(promiseCount);
-		if (promiseCount < 1) {
-		    Promise.all(promises).then((values) => {
-				clearInterval(resolve);
-				if (req.query.format == "csv") {
-					res.set('Content-Type', 'text/csv');
-					res.send(json2csv({data: makeCSVOutput(output) }));
-				} else {
-					res.set('Content-Type', 'application/json');
-	        		res.send(JSON.stringify(output, null, 4));
-	        	}
-			});
-		}
-	},20000);
-}
 
-function setPromiseInterval2(req,res,id) {
-	var resolve = setInterval(() => {
-		Promise.all(promises).then((values) => {
-			clearInterval(resolve);
-			if (req.query.format == "csv") {
-				res.set('Content-Type', 'text/csv');
-				res.send(json2csv({data: makeCSVOutput(output["courses"][0]["contentobjects"][id]) }));
-			} else {
-				res.set('Content-Type', 'application/json');
-	       		res.send(JSON.stringify(output["courses"][0]["contentobjects"][id], null, 4));
-	       	}
-		});
-	},2000);
-}
+// Function to handle JSON response
+exports.getContentObject = async function(req, res, dbo, id) {
+	const dbConnect = dbo.getDb();
 
-function getChildren(dbo,parent_id,collection,path) {
-	if (parent_id == "6438250bb38aaf6b93dd83a7") {
-		//console.log("Getting children for block 6438250bb38aaf6b93dd83a7");
+	try {
+	  const contentData = await buildContentData(dbConnect, id);
+	  res.json(contentData);
+	} catch (err) {
+	  console.error("Error:", err);
+	  if (err.message === "Content object not found") {
+		res.status(404).json({ error: "Content object not found" });
+	  } else {
+		res.status(500).json({ error: "An error occurred" });
+	  }
 	}
-	promiseCount = promiseCount + 1;
-	var dbConnect = dbo.getDb();
-	dbConnect
-		.collection(collection)
-         .find({"_parentId":new ObjectId(parent_id)})
-        .toArray(function(err,data) {
-        	if (parent_id == "6438250bb38aaf6b93dd83a7") {
-        		//console.log("data for 6438250bb38aaf6b93dd83a7");
-        		//console.log(JSON.stringify(data));
-        	}
-        	promises.push(new Promise((resolve,reject) => {
-            	resolve(processData(dbo,data,parent_id,collection,path));
-        	}));
-        });
-}
+};
 
-function updateCache(dbo) {
-  var resolve = setInterval(() => {
-    Promise.all(promises).then((values) => {
-      console.log("Updating database");
-      clearInterval(resolve);
-      
-      // Delete all documents in the collection
-      var dbConnect = dbo.getDb();
-      dbConnect.collection("AdaptCourseCache").deleteMany({});
-      
-      courses = output["courses"];
-      var insertPromises = [];
-      
-      // Insert new documents
-      for (const [key, value] of Object.entries(courses)) {
-        insertPromises.push(
-          dbConnect.collection("AdaptCourseCache").insertOne({_id: new ObjectId(key), ...value})
-        );
-      }
-      
-      Promise.all(insertPromises).then(() => {
-        console.log("Documents inserted successfully");
-      }).catch((error) => {
-        console.error("Error inserting documents:", error);
-      });
-    });
-  }, 60000);
-}
-
-function getConfig(dbo,id) {
+/*
+ * Updated function 2024-01-03
+ */
+exports.getCourseConfig = function(req, res, dbo, id) {
 	var collection = "configs";
 	var dbConnect = dbo.getDb();
+	var query = {"_courseId": new ObjectId(id)};
 	dbConnect
 		.collection(collection)
-        .find({"_courseId":new ObjectId(id)})
-        .toArray(function(err,data) {
-        	output["courses"][id]["config"] = data[0];
-        	if (data[0]._themePreset) {
-        		getThemePreset(dbo,id,data[0]._themePreset);
-        	}
-        })
-}
-
-function getThemePreset(dbo,id,themeid) {
-	var collection = "themepresets";
-	var dbConnect = dbo.getDb();
-	dbConnect
-		.collection(collection)
-        .find({"_id":new ObjectId(themeid)})
-        .toArray(function(err,data) {
-        	output["courses"][id]["config"]["_themePreset"] = data[0];
-        })
-}
-
-exports.updateCourseCache = function(dbo,localdb) {
-	console.log("Updating course cache");
-	var collection = "courses";
-	var dbConnect = dbo.getDb();
-	dbConnect
-		.collection(collection)
-        .find({})
-        .toArray(function(err,data) {
-			for(i=0;i<data.length;i++) {
-				var courseData = {};
-				id = data[i]._id;
-				output["courses"][id] = {};
-				output["courses"][id].title = data[i].displayTitle;
-				output["courses"][id]["contentobjects"] = {};
-				path = id;
-				getConfig(dbo,id);
-				getChildren(dbo,id,"contentobjects",path);
+		.findOne(query, function(err, data) {
+			if (err) {
+				console.error("Error while retrieving object:", err);
+				res.status(500).json({ error: "An error occurred while retrieving content object" });
+				return;
 			}
-			updateCache(localdb);
-		});
-}
 
-
-exports.getCourses = function(req, res, dbo) {
-	var collection = "AdaptCourseCache";
-	var dbConnect = dbo.getDb();
-	dbConnect
-		.collection(collection)
-        .find({})
-        .toArray(function(err,data) {
-        	if (req.query.format == "csv") {
-				res.set('Content-Type', 'text/csv');
-				res.send(json2csv({data: makeCSVOutput(data) }));
-			} else {
-				res.set('Content-Type', 'application/json');
-	        	res.send(JSON.stringify(data, null, 4));
-	        }
-		});
-}
-
-exports.getContentObject = function(req, res, dbo, id) {
-	var collection = "AdaptCourseCache";
-	var dbConnect = dbo.getDb();
-	var firstPart = "contentobjects." + id + ".id";
-	var query = {};
-	query[firstPart] = ObjectId(id);
-	dbConnect
-		.collection(collection)
-        .findOne(query,function(err,data) {     		
-        	for (const [key, value] of Object.entries(data.contentobjects)) {
-        		if (key == id) {
-        			if (req.query.format == "csv") {
-						res.set('Content-Type', 'text/csv');
-						res.send(json2csv({data: makeCSVOutput(value) }));
-					} else {
-						res.set('Content-Type', 'application/json');
-	       				res.send(JSON.stringify(value, null, 4));
-			       	}	
-			    }
+			if (!data) {
+				console.log("Object not found");
+				res.status(404).json({ error: "Object not found" });
+				return;
 			}
-		});
-}
-
-
-exports.getContentObjectConfig = function(req, res, dbo, id) {
-	var collection = "AdaptCourseCache";
-	var dbConnect = dbo.getDb();
-	var firstPart = "contentobjects." + id + ".id";
-	var query = {};
-	query[firstPart] = ObjectId(id);
-	dbConnect
-		.collection(collection)
-        .findOne(query,function(err,data) {
-        	if (req.query.format == "csv") {
-				res.set('Content-Type', 'text/csv');
-				res.send(json2csv({data: makeCSVOutput(data.config) }));
-			} else {
-				res.set('Content-Type', 'application/json');
-	       		res.send(JSON.stringify(data.config, null, 4));
-			}	
+			res.json(data);
 		});
 }

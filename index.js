@@ -499,6 +499,18 @@ app.get('/api/courses', function(req,res) {
   adaptapi.getObjectsFromCollection(req, res, adaptdb, "courses");
 });
 
+app.get('/api/contentObjects', function(req,res) {
+  if (!req.isAuthenticated() && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
+  if (req.session.profile.userType == "user") { forbidden(res); return; }
+  adaptapi.getObjectsFromCollection(req, res, adaptdb, "contentobjects");
+});
+
+app.get('/api/contentObjects/summary', function(req,res) {
+  if (!req.isAuthenticated() && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
+  if (req.session.profile.userType == "user") { forbidden(res); return; }
+  adaptapi.getCacheData(req, res, adaptdb, dbo);
+});
+
 app.get('/api/courseDetail', function(req,res) {
   if (!req.isAuthenticated() && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
   if (req.session.profile.userType == "user") { forbidden(res); return; }
@@ -508,12 +520,12 @@ app.get('/api/courseDetail', function(req,res) {
 app.get('/api/contentObject/:id', function(req,res) {
   if (!req.isAuthenticated() && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
   if (req.session.profile.userType == "user") { forbidden(res); return; }
-  adaptapi.getContentObject(req, res, dbo, req.params.id);
+  adaptapi.getContentObject(req, res, adaptdb, req.params.id);
 });
-app.get('/api/contentObject/:id/config', function(req,res) {
+app.get('/api/course/:id/config', function(req,res) {
   if (!req.isAuthenticated() && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
   if (req.session.profile.userType == "user") { forbidden(res); return; }
-  adaptapi.getContentObjectConfig(req, res, dbo, req.params.id);
+  adaptapi.getCourseConfig(req, res, adaptdb, req.params.id);
 });
 
 
@@ -622,7 +634,7 @@ adaptdb.connectToServer(function (err) {
 if (process.env.UPDATE_COURSE_CACHE == "true") {
   setTimeout(() => {
     adaptapi.updateCourseCache(adaptdb,dbo);
-  },2000);
+  },1000);
 
   setInterval(() => {
     adaptapi.updateCourseCache(adaptdb,dbo);
