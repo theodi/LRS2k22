@@ -21,122 +21,130 @@ h1 {
     </div>
 </div>
 <script>
-   function getBlockText(bkey,elementID) {
+   function getBlockText(data,elementID) {
     var h2 = document.createElement("h1");
-    $.get('/api/block/'+bkey, function(data) {
-        if (data.displayTitle.trim() != "") {
-            h2.innerHTML = data.displayTitle;
-            document.getElementById(elementID).append(h2);
-        }
-        document.getElementById(elementID).insertAdjacentHTML( 'beforeend', data.body );
-    });
-   }
-   function getComponentText(ckey,elementID) {
-    var h2 = document.createElement("h1");
-    $.get('/api/component/'+ckey, function(data) {
-        //console.log(data);
+    if (data.displayTitle.trim() != "") {
         h2.innerHTML = data.displayTitle;
         document.getElementById(elementID).append(h2);
-        document.getElementById(elementID).insertAdjacentHTML( 'beforeend', data.body );
-        if (data.properties && !data.properties._feedback) {
-            var instruction = document.createElement("p");
-            instruction.innerHTML = data.properties.instruction;
-            document.getElementById(elementID).append(instruction);
-            if (data.properties._completionBody) {
-                document.getElementById(elementID).insertAdjacentHTML( 'beforeend', data.properties._completionBody );
+    }
+    document.getElementById(elementID).insertAdjacentHTML( 'beforeend', data.body );
+    if (data._extensions && data._extensions._extra && data._extensions._extra._isEnabled === true) {
+        (data._extensions._extra._items).forEach(item => {
+            if (item.title) {
+                var h3 = document.createElement('h3');
+                h3.innerHTML = item.title;
+                document.getElementById(elementID).append(h3);
             }
-            var list = document.createElement('ul');
-            var appendList = false;
-            try {
-                (data.properties._items).forEach(item => {
-                    if (item.title) {
-                        var h3 = document.createElement('h3');
-                        h3.innerHTML = item.title;
-                        document.getElementById(elementID).append(h3);
-                        if (item.body) {
-                           document.getElementById(elementID).insertAdjacentHTML( 'beforeend', item.body );
-                        }
-                    } else {
-                        appendList = true;
-                        var option = document.createElement('li');
-                        if (item.body) {
-                            option.innerHTML = item.body;
-                        }
-                        if (item.text) {
-                            option.innerHTML = item.text;
-                        }
-                        list.append(option);
-                    }
-                });
-            } catch (err) {
-                //console.log(err);
+            if (item.body) {
+                document.getElementById(elementID).insertAdjacentHTML( 'beforeend', item.body );
             }
-            if (appendList) {
-                document.getElementById(elementID).append(list);
+        });
+    }
+   }
+   function getComponentText(data,elementID) {
+    var h2 = document.createElement("h1");
+    h2.innerHTML = data.displayTitle;
+    document.getElementById(elementID).append(h2);
+    document.getElementById(elementID).insertAdjacentHTML( 'beforeend', data.body );
+    if (data._extensions && data._extensions._extra && data._extensions._extra._isEnabled === true) {
+        console.log(data);
+        (data._extensions._extra._items).forEach(item => {
+            if (item.title) {
+                var h3 = document.createElement('h3');
+                h3.innerHTML = item.title;
+                document.getElementById(elementID).append(h3);
             }
+            if (item.body) {
+                document.getElementById(elementID).insertAdjacentHTML( 'beforeend', item.body );
+            }
+        });
+    }
+    if (data.properties && !data.properties._feedback) {
+        var instruction = document.createElement("p");
+        instruction.innerHTML = data.properties.instruction;
+        document.getElementById(elementID).append(instruction);
+        if (data.properties._completionBody) {
+            document.getElementById(elementID).insertAdjacentHTML( 'beforeend', data.properties._completionBody );
         }
-        if (data.properties._feedback) {
-            var instruction = document.createElement("p");
-            instruction.innerHTML = data.properties.instruction;
-            document.getElementById(elementID).append(instruction);
-            var list = document.createElement('ul');
+        var list = document.createElement('ul');
+        var appendList = false;
+        try {
             (data.properties._items).forEach(item => {
-                var option = document.createElement('li');
-                if (item._shouldBeSelected) {
-                    var bold = document.createElement('b');
-                    bold.innerHTML = item.text;
-                    option.append(bold);
-                    list.append(option);
+                if (item.title) {
+                    var h3 = document.createElement('h3');
+                    h3.innerHTML = item.title;
+                    document.getElementById(elementID).append(h3);
+                    if (item.body) {
+                        document.getElementById(elementID).insertAdjacentHTML( 'beforeend', item.body );
+                    }
                 } else {
-                    option.innerHTML = item.text;
+                    appendList = true;
+                    var option = document.createElement('li');
+                    if (item.body) {
+                        option.innerHTML = item.body;
+                    }
+                    if (item.text) {
+                        option.innerHTML = item.text;
+                    }
                     list.append(option);
                 }
             });
-            document.getElementById(elementID).append(list);
-            document.getElementById(elementID).insertAdjacentHTML( 'beforeend', data.properties._feedback.correct );
-            document.getElementById(elementID).insertAdjacentHTML( 'beforeend', data.properties._feedback._incorrect.final );
+        } catch (err) {
+            //console.log(err);
         }
-    });
+        if (appendList) {
+            document.getElementById(elementID).append(list);
+        }
+    }
+    if (data.properties._feedback) {
+        var instruction = document.createElement("p");
+        instruction.innerHTML = data.properties.instruction;
+        document.getElementById(elementID).append(instruction);
+        var list = document.createElement('ul');
+        (data.properties._items).forEach(item => {
+            var option = document.createElement('li');
+            if (item._shouldBeSelected) {
+                var bold = document.createElement('b');
+                bold.innerHTML = item.text;
+                option.append(bold);
+                list.append(option);
+            } else {
+                option.innerHTML = item.text;
+                list.append(option);
+            }
+        });
+        document.getElementById(elementID).append(list);
+        document.getElementById(elementID).insertAdjacentHTML( 'beforeend', data.properties._feedback.correct );
+        document.getElementById(elementID).insertAdjacentHTML( 'beforeend', data.properties._feedback._incorrect.final );
+    }
    }
    $(document).ready( function () {
         $.get('/api/contentObject/<%= id %>', function(data) {
             document.getElementById("main-title").innerHTML = data.title;
-           // for (const [key, value] of Object.entries(data.articles)) {
-           //     if (typeof value == "object") {
-                    delete(data.articles.length);
-                    var articles = Object.keys(data.articles).map((key) => data.articles[key]);
-                    articles = articles.sort((a, b) => {
-                        if (a.sortOrder < b.sortOrder) {
-                            return -1;
-                        }
-                    });
-                    for (var i=0;i<articles.length;i++) {
-                        blocks = articles[i].blocks;
-                        delete(blocks.length);
-                        var blocks = Object.keys(blocks).map((key) => blocks[key]);
-                        blocks = blocks.sort((a, b) => {
-                            if (a.sortOrder < b.sortOrder) {
-                                return -1;
-                            }
-                        });
-                        for (var b=0;b<blocks.length;b++) {
-                            bvalue = blocks[b];
-                            var block = document.createElement('block');
-                            block.setAttribute('id',"transcript-"+bvalue.id);
-                            document.getElementById("transcript").append(block);
-                            getBlockText(bvalue.id,"transcript-"+bvalue.id);
-                            for (const [ckey, cvalue] of Object.entries(bvalue.components)) {
-                                if (typeof cvalue == "object") {
-                                    var block = document.createElement('block');
-                                    block.setAttribute('id',"transcript-"+ckey);
-                                    document.getElementById("transcript").append(block);
-                                    getComponentText(ckey,"transcript-"+ckey);
-                                }
-                            }
-                        }
+            var articles = data.articles;
+            for (var i=0;i<articles.length;i++) {
+                blocks = articles[i].blocks;
+                for (var b=0;b<blocks.length;b++) {
+                    block = blocks[b];
+
+                    var blockElement = document.createElement('block');
+                    blockElement.setAttribute('id',"transcript-"+block._id);
+                    document.getElementById("transcript").append(blockElement);
+
+                    getBlockText(block,"transcript-"+block._id);
+
+                    var components = block.components;
+                    for (var c=0;c<components.length;c++) {
+                        component = components[c];
+
+                        var element = document.createElement('block');
+                        element.setAttribute('id',"transcript-"+component._id);
+                        document.getElementById("transcript").append(element);
+
+                        getComponentText(component,"transcript-"+component._id);
                     }
-                //}
-            //}
+                }
+            }
         });
     });
 </script>
