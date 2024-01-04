@@ -537,13 +537,18 @@
                         if (feedbackComponent) {
                             primaryComponent = feedbackComponent;
                         } else {
-                            // Find the first component that is not "graphic"
-                            const nonGraphicComponent = components.find(component => component._component !== "graphic");
-                            if (nonGraphicComponent) {
-                               primaryComponent = nonGraphicComponent;
+                            const componentWithTitle = components.find(component => component.displayTitle.trim() !== "");
+                            if (componentWithTitle) {
+                                primaryComponent = componentWithTitle;
                             } else {
-                                // If none of the above conditions are met, the first component is the primary component
-                                primaryComponent = components[0];
+                            // Find the first component that is not "graphic"
+                                const nonGraphicComponent = components.find(component => component._component !== "graphic");
+                                if (nonGraphicComponent) {
+                                    primaryComponent = nonGraphicComponent;
+                                } else {
+                                    // If none of the above conditions are met, the first component is the primary component
+                                    primaryComponent = components[0];
+                                }
                             }
                         }
                     }
