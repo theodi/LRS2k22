@@ -450,7 +450,16 @@
                 local.title = article.title;
                 if (article._extensions && article._extensions._assessment && article._extensions._assessment._isEnabled === true) {
                     totalAssessmentWeight += article._extensions._assessment._assessmentWeight;
-                    local.title += " <br/><b>AssessmentID</b>: " + article._extensions._assessment._id + "<br/><b>Weight</b>: " + article._extensions._assessment._assessmentWeight + "<br/><b>Attempts allowed:</b> " + article._extensions._assessment._attempts;
+                    local.title += "<table><tr><td style='vertical-align: middle;'>";
+                    local.title += "<b>AssessmentID</b>: " + article._extensions._assessment._id + "<br/>";
+                    local.title += "<b>Weight</b>: " + article._extensions._assessment._assessmentWeight + "<br/>";
+                    local.title += "<b>Attempts allowed:</b> " + article._extensions._assessment._attempts + "<br/>";
+                    local.title += "</td><td style='vertical-align: middle;'>";
+                    local.title += "<b>Reset Type:</b> " + article._extensions._assessment._questions._resetType + "<br/>";
+                    local.title += "<b>Can show feedback:</b> " + article._extensions._assessment._questions._canShowFeedback + "<br/>";
+                    local.title += "<b>Can show marking:</b> " + article._extensions._assessment._questions._canShowMarking + "<br/>";
+                    local.title += "<b>Can show model answer:</b> " + article._extensions._assessment._questions._canShowModelAnswer + "<br/>";
+                    local.title += "</td></tr></table>";
                 }
                 local.isQuestion = false;
                 local.activityID = activityID;
