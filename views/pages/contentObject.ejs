@@ -81,6 +81,7 @@
                             <th>Block #</th>
                             <th>Type</th>
                             <th>Title</th>
+                            <th>Edit</th>
                             <th># words</th>
                         </tr>
                     </thead>
@@ -346,10 +347,11 @@
 
         function addDataToTable(id, data) {
             var row = document.createElement('tr');
-            var number = document.createElement('td')
-            var icon = document.createElement('td')
-            var title = document.createElement('td')
+            var number = document.createElement('td');
+            var icon = document.createElement('td');
+            var title = document.createElement('td');
             var words = document.createElement('td');
+            var editLink = document.createElement('td');
             if (data.isQuestion && data.activityID) {
                 var a = document.createElement("a");
                 a.setAttribute("href", "/questionSummary?activity=" + data.activityID + "%23/id/" + data.id);
@@ -359,6 +361,12 @@
             } else {
                 title.innerHTML = data.title;
             }
+            var editType = "component";
+            if (data.type == "article") {
+                editType = "article";
+            }
+            var aatEditLink = "<%= aatBase %>#editor/" + courseId + "/"+editType+"/" + data.id + "/edit";
+            editLink.innerHTML = '<a href="'+aatEditLink+'" target="_blank">edit</a>';
             number.innerHTML = data.count;
             var img = document.createElement('img');
             img.setAttribute("src", "/images/component-icons/icon-" + data.type + ".png");
@@ -373,6 +381,7 @@
             row.append(number);
             row.append(icon);
             row.append(title);
+            row.append(editLink);
             row.append(words);
             document.getElementById(id).append(row);
         }
@@ -445,7 +454,7 @@
                 }
                 local.isQuestion = false;
                 local.activityID = activityID;
-                local.id = article.id;
+                local.id = article._id;
                 local.wordCount = "-";
                 local.count = "Article-" + i;
                 addDataToTable("section_table_body", local);

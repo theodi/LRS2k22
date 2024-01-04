@@ -1,6 +1,6 @@
 {
   "name": "lrs2k22",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "The ODI Learning Records System frontend",
   "main": "index.js",
   "scripts": {
