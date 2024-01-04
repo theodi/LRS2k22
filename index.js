@@ -588,6 +588,44 @@ app.get('/api/:collection/:id', function(req,res) {
   adaptapi.getObjectById(req, res, adaptdb, req.params.collection, req.params.id);
 });
 
+app.post('/api/:collection/:id', async function (req, res) {
+  if (!req.isAuthenticated()) {
+    unauthorised(res);
+    return;
+  }
+
+  const collection = req.params.collection;
+  const id = req.params.id;
+
+  try {
+    // Extract the JSON data from the request body
+    const requestData = req.body;
+
+    // Make an HTTP POST request to the external service using fetch
+    const response = await fetch(aatBase + ':3035/' + collection + '/' + id, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestData), // Pass the JSON data in the request body
+    });
+
+    // Check if the external service request was successful
+    if (response.ok) {
+      // Forward the response directly to the client
+      response.body.pipe(res);
+    } else {
+      // Handle the case where the external service returns an error
+      //console.error('External service returned an error:', response.statusText);
+      res.status(response.status).send(response.statusText);
+    }
+  } catch (error) {
+    // Handle any network or server errors
+    console.error('Error calling external service:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 app.post('/course/:courseId/resetPageLevelProgress', async function(req,res) {
   if (!req.isAuthenticated()) { unauthorised(res); return; }
   const courseId = req.params.courseId;

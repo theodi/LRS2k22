@@ -82,6 +82,7 @@
                             <th>Type</th>
                             <th>Title</th>
                             <th>Edit</th>
+                            <th>Set block title</th>
                             <th># words</th>
                         </tr>
                     </thead>
@@ -147,7 +148,44 @@
             });
         }
 
-        // Function to handle package upload
+       // Function to handle resetting of progress bar to use block titles
+        async function setBlockTitle(event, id, title, displayTitle) {
+            event.preventDefault(); // Prevent the default navigation behavior
+            var toUpdate = { "title": title, "displayTitle": "" }
+            try {
+                // Make a POST request to update the block title
+                const response = await fetch(`/api/blocks/${id}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json' // Set the content type to JSON
+                },
+                body: JSON.stringify(toUpdate) // Convert toUpdate to JSON and include it in the request body
+                });
+
+                if (response.status === 304) {
+                // Handle the case where the server returns a 304 status (Not Modified)
+                displayMessage('Not Modified', 'info', "setBlockTitle_" + id);
+                } else if (response.ok) {
+                    response.json().then((data) => {
+                        // Display a success message from the server
+                        displayMessage(data.message, 'success', "setBlockTitle_" + id);
+                        // Optionally, update the UI or perform additional actions
+                    });
+                } else {
+                    // Handle the case where the update fails
+                    response.json().then((data) => {
+                        displayMessage(data.error, 'error', "setBlockTitle_" + id);
+                    });
+                }
+            } catch (error) {
+                // Handle any network or server errors
+                console.error('Error updating object:', error);
+                displayMessage('Failed', 'error', "setBlockTitle_" + id);
+            }
+        }
+
+
+        // Function to handle resetting of progress bar to use block titles
         async function resetProgress() {
             try {
                 // Make a POST request to reset page-level progress
@@ -352,6 +390,7 @@
             var title = document.createElement('td');
             var words = document.createElement('td');
             var editLink = document.createElement('td');
+            var setBlockTitle = document.createElement('td');
             if (data.isQuestion && data.activityID) {
                 var a = document.createElement("a");
                 a.setAttribute("href", "/questionSummary?activity=" + data.activityID + "%23/id/" + data.id);
@@ -367,6 +406,9 @@
             }
             var aatEditLink = "<%= aatBase %>#editor/" + courseId + "/"+editType+"/" + data.id + "/edit";
             editLink.innerHTML = '<a href="'+aatEditLink+'" target="_blank">edit</a>';
+            if (data.blockId && data.canSetTitle) {
+                setBlockTitle.innerHTML = '<span id="setBlockTitle_' + data.blockId + '"><a href="#" onClick="setBlockTitle(event, \'' + data.blockId + '\', \'' + data.title + '\')">Set block title</a></span>';
+            }
             number.innerHTML = data.count;
             var img = document.createElement('img');
             img.setAttribute("src", "/images/component-icons/icon-" + data.type + ".png");
@@ -382,6 +424,7 @@
             row.append(icon);
             row.append(title);
             row.append(editLink);
+            row.append(setBlockTitle);
             row.append(words);
             document.getElementById(id).append(row);
         }
@@ -478,7 +521,12 @@
                     local.isQuestion = false;
                     local.activityID = activityID;
                     local.wordCount = block.wordCount;
+                    local.blockId = block._id;
                     components = block.components;
+                    local.canSetTitle = false;
+                    if (block.displayTitle.trim() == "") {
+                        local.canSetTitle = true;
+                    }
                     let primaryComponent;
                     if (components.length === 1) {
                         // If there's only one component, it's the primary component
