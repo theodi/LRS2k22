@@ -230,7 +230,7 @@
 
             try {
                 // Make a POST request to upload the package
-                const response = await fetch(`/course/`+contentObjectId+`/packages/upload/`, {
+                const response = await fetch(`/course/`+courseId+`/packages/upload/`, {
                     method: 'POST',
                     body: formData,
                 });
@@ -278,12 +278,12 @@
 
             try {
                 // Make a GET request to fetch the list of build packages
-                const buildResponse = await fetch(`/course/${contentObjectId}/packages/build`, {
+                const buildResponse = await fetch(`/course/${courseId}/packages/build`, {
                     method: 'GET',
                 });
 
                 // Make a GET request to fetch the list of source packages
-                const sourceResponse = await fetch(`/course/${contentObjectId}/packages/source`, {
+                const sourceResponse = await fetch(`/course/${courseId}/packages/source`, {
                     method: 'GET',
                 });
 
@@ -292,10 +292,10 @@
                     const sourceData = await sourceResponse.json();
 
                     // Display BUILD packages
-                    displayPackageSection(buildData.packages, contentObjectId, 'build');
+                    displayPackageSection(buildData.packages, courseId, 'build');
 
                     // Display source packages
-                    displayPackageSection(sourceData.packages, contentObjectId, 'source');
+                    displayPackageSection(sourceData.packages, courseId, 'source');
                 } else {
                     displayMessage('Error fetching packages', 'error', "messageBanner");
                 }
@@ -306,16 +306,16 @@
         }
 
         // Function to display a package section
-        function displayPackageSection(packages, contentObjectId, packageType) {
+        function displayPackageSection(packages, courseId, packageType) {
             let html = '';
             var count = 0;
             packages.forEach((packageFileName) => {
                 const packageDateTime = new Date(parseInt(packageFileName.split('-')[1], 10));
                 const formattedDateTime = packageDateTime.toLocaleString();
 
-                const downloadLink = `/course/${contentObjectId}/packages/${packageType}/${packageFileName}`;
-                const deleteLink = `/course/${contentObjectId}/packages/delete/${packageType}/${packageFileName}`;
-                const latestLink = `/course/${contentObjectId}/packages/${packageType}/latest`;
+                const downloadLink = `/course/${courseId}/packages/${packageType}/${packageFileName}`;
+                const deleteLink = `/course/${courseId}/packages/delete/${packageType}/${packageFileName}`;
+                const latestLink = `/course/${courseId}/packages/${packageType}/latest`;
 
                 if (count == 0) {
                     countText = '<a href="' + latestLink + '">latest</a>';
