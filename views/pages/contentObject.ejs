@@ -444,6 +444,7 @@
             if (courseData._completionCriteria) {
                 addRowToTable("course-factbox", "Require content completed", courseData._completionCriteria._requireContentCompleted);
                 addRowToTable("course-factbox", "Require assessment completed", courseData._completionCriteria._requireAssessmentCompleted);
+                addRowToTable("course-factbox", "Submit score to LMS", courseData._completionCriteria._shouldSubmitScore);
             }
             if (courseData._extensions) {
                 if (courseData._extensions._xapi) {
