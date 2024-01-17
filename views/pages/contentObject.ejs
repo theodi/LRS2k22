@@ -463,8 +463,8 @@
                     addRowToTable("xapi-factbox", "Type", "SCORM");
                     spoor = courseData._extensions._spoor;
                     addRowToTable("xapi-factbox", "Enabled", spoor._isEnabled);
-                    addRowToTable("xapi-factbox", "on training criteria met", spoor._reporting._onTrackingCriteriaMet);
-                    addRowToTable("xapi-factbox", "on assessment failure", spoor._reporting._onAssessmentFailure);
+                    addRowToTable("xapi-factbox", "Tracking success status", spoor._reporting._onTrackingCriteriaMet);
+                    addRowToTable("xapi-factbox", "Assessment failure status", spoor._reporting._onAssessmentFailure);
                 }
             }
             for (const [key, value] of Object.entries(courseData._enabledExtensions)) {
