@@ -1,6 +1,6 @@
 var ObjectId = require('mongodb').ObjectID;
 const fetch = require('node-fetch');
-var json2csv = require('json2csv'); // Library to create CSV for output
+const { Parser } = require('@json2csv/plainjs'); // Library to create CSV for output
 const { Headers } = fetch;
 
 resolved = false;
@@ -249,8 +249,10 @@ function processReturn(req,res,filter,output,csvOutput) {
     // CSV, JSON or by default HTML (web page)
     res.set('Access-Control-Allow-Origin', '*');
     if (ext == "csv") {
+        const parser = new Parser({ header: true });
+        const csv = parser.parse(csvOutput);
         res.set('Content-Type', 'text/csv');
-        res.send(json2csv({ data: csvOutput }));
+        res.send(csv);
     } else if (ext == "json") {
         res.set('Content-Type', 'application/json');
         res.send(JSON.stringify(output, null, 4));

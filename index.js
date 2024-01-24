@@ -528,7 +528,6 @@ app.get('/api/course/:id/config', function(req,res) {
   adaptapi.getCourseConfig(req, res, adaptdb, req.params.id);
 });
 
-
 /*
  * Get Users
  *

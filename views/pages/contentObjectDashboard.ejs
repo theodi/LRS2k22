@@ -83,6 +83,11 @@
 </div>
 <script>
 
+
+let courseData = {};
+let objectData = {};
+let courseId = "";
+const contentObjectId = "<%= id %>";
 var module = getUrlVars()["module"];
 var completeLine = dc.rowChart('#complete-line');
 var passedLine = dc.rowChart('#assessment-line');
@@ -122,7 +127,7 @@ function addRowToTable(id,key,value) {
 
 function addTrackingBlock(id,data) {
     var block = document.createElement('subsection');
-    block.setAttribute('id','block_' + data.blockID);
+    block.setAttribute('id','block_' + data.blockId);
     block.setAttribute('class','question');
 
     var text = document.createElement('div');
@@ -132,7 +137,7 @@ function addTrackingBlock(id,data) {
     title.innerHTML = data.title;
 
     var number = document.createElement('p')
-    number.innerHTML = data.blockID;
+    number.innerHTML = data.blockId;
 
     text.append(title);
     text.append(number);
@@ -157,16 +162,16 @@ function addTrackingBlock(id,data) {
 
     var labels = document.createElement("div");
     labels.setAttribute('class','chart_labels');
-    labels.setAttribute('id','labels_'+data.blockID);
+    labels.setAttribute('id','labels_'+data.blockId);
 
     var line = document.createElement('div');
-    line.setAttribute('id','line_'+data.blockID);
+    line.setAttribute('id','line_'+data.blockId);
 
     chart.append(labels);
     chart.append(line);
 
     var bar = document.createElement('div');
-    bar.setAttribute('id','bar_'+data.blockID);
+    bar.setAttribute('id','bar_'+data.blockId);
 
     block.append(text);
     block.append(icon);
@@ -177,192 +182,133 @@ function addTrackingBlock(id,data) {
     document.getElementById(id).append(block);
 }
 
-function addDataToTable(id,data) {
-    var row = document.createElement('tr');
-    var number = document.createElement('td')
-    var icon = document.createElement('td')
-    var title = document.createElement('td')
-    var words = document.createElement('td');
-    if (data.isQuestion && data.activityID) {
-        var a = document.createElement("a");
-        a.setAttribute("href","/questionSummary?activity="+data.activityID+"%23/id/"+data.id);
-        a.setAttribute("target","_blank");
-        a.innerHTML = data.title;
-        title.append(a);
-    } else {
-        title.innerHTML = data.title;
+async function loadData() {
+    try {
+        objectData = await getContentObjectData();
+        courseId = objectData._courseId;
+
+        courseData = await getCourseData();
+
+        // Trigger the document ready event when data is loaded
+        $(document).ready(handleDocumentReady);
+    } catch (error) {
+        console.error('Error loading course data:', error);
+        // Handle error appropriately
     }
-    number.innerHTML = data.blockID + "<br/>" + data.id;
-    var img = document.createElement('img');
-    img.setAttribute("src","/images/component-icons/icon-"+data.type+".png");
-    img.setAttribute("onerror","this.onerror=null;this.src='/images/component-icons/icon-default.png'")
-    img.setAttribute("alt",data.type);
-    icon.append(img);
-    var p = document.createElement("span");
-    p.style.paddingLeft = "10px";
-    p.innerHTML = data.type;
-    icon.append(p);
-    words.innerHTML = data.wordCount;
-    row.append(number);
-    row.append(icon);
-    row.append(title);
-    row.append(words);
-    document.getElementById(id).append(row);
 }
 
-$(document).ready( function () {
+async function getCourseData() {
+    return new Promise((resolve, reject) => {
+        $.get('/api/course/'+courseId+'/config', function (data) {
+            resolve(data);
+        }).fail(function (error) {
+            console.log(error);
+            reject(error);
+        });
+    });
+}
+
+async function getContentObjectData() {
+    return new Promise((resolve, reject) => {
+        $.get('/api/contentObject/<%= id %>', function (data) {
+            resolve(data);
+        }).fail(function (error) {
+            reject(error);
+        });
+    });
+}
+
+function handleDocumentReady() {
     var activityID = null;
     var trackingBlocks = [];
-    $.get('/api/contentObject/<%= id %>/config', function(data) {
-        if (data._extensions._xapi) {
-            if (!data._extensions._xapi || data._extensions._xapi._isEnabled == "false") {
-            } else {
-                activityID = data._extensions._xapi._activityID;
-            }
-        }
-    });
-    $.get('/api/contentObject/<%= id %>', function(data) {
-        var count = 1;
-        document.getElementById("main-title").innerHTML = data.title;
-        for (const [key, value] of Object.entries(data.articles)) {
-            if (typeof value == "object") {
-                if (value.title.trim() != "") {
-                    //addTitleToList("section_titles",value.title.trim());
-                }
-                for (const [bkey, bvalue] of Object.entries(data.articles[key].blocks)) {
-                    var local = {};
-                    local.type = "";
-                    local.title = "";
-                    local.isQuestion = false;
-                    local.activityID = activityID;
-                    if (typeof bvalue == "object") {
-                        local.wordCount = bvalue.wordCount;
-                        if (bvalue.title.trim() != "" && bvalue.title.trim().toLowerCase() != "block title") {
-                            local.title = bvalue.title.trim();
-                            local.blockID = bvalue.id;
-                            trackingBlocks.push(bvalue.id);
-                        }
-                        for (const [ckey, cvalue] of Object.entries(data.articles[key].blocks[bkey].components)) {
-                            if (typeof cvalue == "object") {
-                                local.wordCount += cvalue.wordCount;
-                                if (local.type != "" && local.type.trim() == "graphic" && cvalue.type.trim() != "graphic") {
-                                  local.type = cvalue.type;
-                                  local.isQuestion = cvalue.isQuestion;
-                                  local.id = cvalue.id;
-                                } else if (local.type == "") {
-                                  local.type = cvalue.type;
-                                  local.isQuestion = cvalue.isQuestion;
-                                  local.id = cvalue.id;
-                                }
-                                if (cvalue.title.trim() != "" && local.title == "" && cvalue.title.trim().toLowerCase() != "component title") {
-                                    local.title = cvalue.title.trim();
-                                }
-                            }
-                        }
-                    }
-                    if (local.type != "" && local.title !="") {
-                        local.count = count;
-                        //addDataToTable("section_table_body",local);
-                        addTrackingBlock("blocks",local);
-                        count += 1;
-                    } else if (local.title != "") {
-                        local.count = count;
-                        local.type = "default";
-                        //addDataToTable("section_table_body",local);
-                        addTrackingBlock("blocks",local);
-                        count += 1;
-                    }
-                }
-            }
-        }
-        //loadData(activityID+"%23/id/"+data.id,trackingBlocks);
-        loadData(activityID,trackingBlocks);
-    });
-});
 
-function loadData(activityID,trackingBlocks) {
+    if (courseData._extensions._xapi) {
+        if (!courseData._extensions._xapi || courseData._extensions._xapi._isEnabled == "false") {
+        } else {
+            activityID = courseData._extensions._xapi._activityID;
+        }
+    }
+
+    var count = 1;
+    document.getElementById("main-title").innerHTML = objectData.title;
+
+    for (const article of objectData.articles) {
+      if (article.title.trim() != "") {
+          //addTitleToList("section_titles",value.title.trim());
+      }
+      blocks = article.blocks;
+      var blocks = Object.keys(blocks).map((key) => blocks[key]);
+      for (var b = 0; b < blocks.length; b++) {
+        block = blocks[b];
+        var local = {};
+        local.type = "";
+        local.title = "";
+        local.count = b;
+        local.isQuestion = false;
+        local.activityID = activityID;
+        local.wordCount = block.wordCount;
+        local.blockId = block._id;
+        components = block.components;
+        local.canSetTitle = false;
+        if (block.displayTitle.trim() == "") {
+            local.canSetTitle = true;
+        }
+        let primaryComponent;
+        if (components.length === 1) {
+            // If there's only one component, it's the primary component
+            primaryComponent = components[0];
+        } else {
+            // Check for a component with .properties._feedback
+            const feedbackComponent = components.find(component => component.properties && component.properties._feedback);
+            if (feedbackComponent) {
+                primaryComponent = feedbackComponent;
+            } else {
+                const componentWithTitle = components.find(component => component.displayTitle.trim() !== "");
+                if (componentWithTitle) {
+                    primaryComponent = componentWithTitle;
+                } else {
+                // Find the first component that is not "graphic"
+                    const nonGraphicComponent = components.find(component => component._component !== "graphic");
+                    if (nonGraphicComponent) {
+                        primaryComponent = nonGraphicComponent;
+                    } else {
+                        // If none of the above conditions are met, the first component is the primary component
+                        primaryComponent = components[0];
+                    }
+                }
+            }
+        }
+        local.type = primaryComponent._component;
+        local.isQuestion = primaryComponent.isQuestion;
+        local.id = primaryComponent._id;
+        if (primaryComponent.displayTitle.trim() != "" && local.title == "" && primaryComponent.displayTitle.trim().toLowerCase() != "component title") {
+            local.title = primaryComponent.displayTitle.trim();
+        } else {
+            local.title = block.displayTitle.trim();
+        }
+        if (local.type != "" && local.title != "") {
+          local.count = count;
+          addTrackingBlock("blocks",local);
+          count += 1;
+        } else if (local.title != "") {
+          local.count = count;
+          local.type = "default";
+          addTrackingBlock("blocks",local);
+          count += 1;
+        }
+      }
+    }
+    loadD3Dashboard(activityID,trackingBlocks);
+}
+
+function loadD3Dashboard(activityID,trackingBlocks) {
     var url = '/api/activityData?activity='+ activityID + '&related_activities=true';
-    console.log(url);
     d3.csv(url, function (data) {
-        console.log(data);
 
         var ndx = crossfilter(data);
         var all = ndx.groupAll();
         var doneLabels = [];
-/*
-        questions = {};
-        questionData = {};
-        data.forEach(function(row) {
-          keys = Object.keys(row);
-          for (i=9;i<keys.length;i++) {
-            questionId = keys[i].substr(0,keys[i].lastIndexOf("_"));
-            questionPart = keys[i].substr(keys[i].lastIndexOf("_")+1,keys[i].length);
-            if (questionId) {
-              if (!questions[questionId]) questions[questionId] = {};
-              questions[questionId][questionPart] = true;
-            }
-          }
-        });
 
-        var topCount = {};
-        data.forEach(function(row) {
-          for(var key in questions) {
-            if (!topCount[key]) topCount[key] = {};
-            for(var part in questions[key]) {
-              if (!topCount[key][part]) topCount[key][part] = {};
-              if(row[key+"_"+part] != "" && row[key+"_"+part]) {
-                if (!topCount[key][part][questions[key][part]]) topCount[key][part][questions[key][part]] = 0;
-                topCount[key][part][questions[key][part]]++;
-              }
-            }
-          }
-        });
-
-        var range = {};
-        for (var key in questions) {
-          range[key] = 0;
-          for(var part in questions[key]) {
-              if (topCount[key][part][questions[key][part]] > range[key]) {
-                range[key] = topCount[key][part][questions[key][part]];
-              }
-          }
-        }
-
-        questionsHTML = "";
-        for (var key in questions) {
-          questionid = "question_"+key;
-          questionsHTML = "";
-          questionsHTML += "<subsection id='"+questionid+"' class='question'>";
-          questionsHTML += "<div class='correct_block'><div class='label'>Correct answers:</div><div id='question_" + key + "_isCorrect' class='number-chart'></div></div>"
-          questionsHTML += "<table id='table_"+key+"'></table></subsection>";
-          $('#questions').append(questionsHTML);
-          for(var part in questions[key]) {
-            if (part == "isCorrect") {
-              continue;
-            }
-            lkey = key+"_"+part;
-            docid = "question_"+lkey;
-            labelid = "label_"+lkey;
-            questionsHTML = "";
-            questionsHTML += "<tr><td class='label-cell'><div class='label' id='" + labelid + "'>Question answer</div></td>";
-            questionsHTML += "<td><div id='" + docid + "' class='dc-chart question-chart'></div></td></tr>";
-            $('#table_'+key).append(questionsHTML);
-          }
-          $.getJSON( "../api/v1/getComponent.php?id="+key+"&module="+module, function( data ) {
-            questionData[data["_id"]] = data;
-            title = "<div class='questionText'><h3>" + data["title"] +"</h3>" + data["body"] + "</div>";
-            $('#question_'+data["_id"]).prepend(title);
-            items = data["_items"];
-            for(i=0;i<items.length;i++) {
-              if (items[i]["_shouldBeSelected"]) {
-                $('#label_'+data["_id"]+'_'+i).parent().addClass("correct");
-              }
-              $('#label_'+data["_id"]+'_'+i).html(items[i]["text"]);
-            }
-            $('#label_'+data["_id"]+'_isCorrect').html('Correct users')
-          });
-        }
-        */
         function remove_empty_bins(source_group) {
             return {
                 all:function () {
@@ -377,7 +323,6 @@ function loadData(activityID,trackingBlocks) {
                 }
             };
         }
-
 
         var complete = ndx.dimension(function(d) {
             if (d["act:passed"] == "http://adlnet.gov/expapi/verbs/passed" || (d["act:completed"] != "false" && d["act:completed"] != "")) {
@@ -544,7 +489,6 @@ function loadData(activityID,trackingBlocks) {
         var blockIDs = {};
         var prefix = activityID + "#/id/"
         for (i=0;i<trackingBlocks.length;i++) {
-            console.log('processing block ' + path);
             id = trackingBlocks[i];
             path = prefix + id;
             try {
@@ -570,7 +514,6 @@ function loadData(activityID,trackingBlocks) {
                 .margins({top: 0, left: 0, right: 10, bottom: -1})
                 .renderLabel(true)
                 .label(function (d) {
-                    console.log(d.key);
                     var label = d.key.split("_")[0]
                     var lid = d.key.split("_")[1];
                     if (!doneLabels['bar_'+lid]) {
@@ -588,52 +531,6 @@ function loadData(activityID,trackingBlocks) {
                 .xAxis().ticks(0);
         }
 
-        /*
-        var tmpcount = 0;
-        for (var key in questions) {
-          for(var part in questions[key]) {
-            lkey = key+"_"+part;
-            docid = "question_"+lkey;
-
-            if (part == "isCorrect") {
-              questionIDs[lkey] = dc.numberDisplay('#' + docid);
-            } else {
-              questionIDs[lkey] = dc.rowChart('#' + docid);
-            }
-
-            var dimension = ndx.dimension(function(d) {
-              if (d[lkey] == "" || typeof d[lkey] == 'undefined' || d[lkey] == 0 || d[lkey] == "0") {
-                return "";
-              } else {
-                return "correct";
-              }
-            });
-            var group = dimension.group();
-            var group2 = remove_empty_bins(group);
-
-            if (part == "isCorrect") {
-              questionIDs[lkey]
-                .group(group2)
-                .formatNumber(d3.format(".3s"))
-            } else {
-            questionIDs[lkey]
-              .width(320)
-              .height(40)
-              .dimension(dimension)
-              .group(group2)
-              .margins({top: 0, left: 0, right: 10, bottom: -1})
-              .renderLabel(true)
-              .x(d3.scale.linear().range([0,270]).domain([0,range[lkey.substr(0,lkey.lastIndexOf("_"))]]))
-              .label(function (d) {
-                return d.value;
-              })
-              .elasticX(false)
-              .xAxis().ticks(0)
-            }
-          }
-        }
-        */
-
         var count = function() {
             number = complete.top(Number.POSITIVE_INFINITY).length;
             document.getElementById('total_records').innerHTML = number;
@@ -643,4 +540,5 @@ function loadData(activityID,trackingBlocks) {
         dc.renderAll();
     });
 }
+loadData();
 </script>

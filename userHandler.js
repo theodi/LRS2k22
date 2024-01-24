@@ -1,4 +1,4 @@
-var json2csv = require('json2csv'); // Library to create CSV for output
+const { Parser } = require('@json2csv/plainjs'); // Library to create CSV for output
 
 exports.insertUser = function(res,dbo,profile) {
 	profile.suspended = false;
@@ -24,8 +24,10 @@ exports.getUsers = function(req,res,dbo,format) {
       .find()
       .toArray(function(err,items) {
       	if (format=="text/csv") {
-      		res.set('Content-Type', 'text/csv');
-			res.send(json2csv({data: makeCSVOutput(items) }));
+			const parser = new Parser({ header: true });
+	        const csv = parser.parse(makeCSVOutput(items));
+    	    res.set('Content-Type', 'text/csv');
+        	res.send(csv);
 		} else {
 			res.set('Content-Type', 'application/json');
 	        res.send(JSON.stringify(items, null, 4));
@@ -39,8 +41,10 @@ exports.getUser = function(req,res,dbo,id,format) {
       .find({'id': id})
       .toArray(function(err,items) {
       	if (format=="text/csv") {
-      		res.set('Content-Type', 'text/csv');
-			res.send(json2csv({data: makeCSVOutput(items[0]) }));
+			const parser = new Parser({ header: true });
+	        const csv = parser.parse(makeCSVOutput(items[0]));
+    	    res.set('Content-Type', 'text/csv');
+        	res.send(csv);
 		} else {
 			res.set('Content-Type', 'application/json');
 	        res.send(JSON.stringify(items[0], null, 4));
@@ -53,7 +57,7 @@ exports.updateUser = function(req,res,dbo,id) {
 	var dbConnect = dbo.getDb();
 	dbConnect
       .collection("Users")
-      .updateOne({'id': id}, { $set: { suspended: updateSuspended, userType: updateRole }}, 
+      .updateOne({'id': id}, { $set: { suspended: updateSuspended, userType: updateRole }},
       function(err,result) {
       	res.locals.pageTitle = "Edit user";
       	res.render('pages/editUserProfile', {userid: id, msg: "User updated"});

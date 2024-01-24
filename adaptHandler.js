@@ -1,6 +1,6 @@
 var ObjectId = require('mongodb').ObjectID;
 const { ObjectID } = require('bson');
-var json2csv = require('json2csv'); // Library to create CSV for output
+const { Parser } = require('@json2csv/plainjs'); // Library to create CSV for output
 
 // Function to retrieve an object by ID and handle tags
 async function getObjectById(dbConnect, collection, id) {
@@ -312,11 +312,10 @@ exports.getCacheData = async function (req, res, sourceDb, cacheDb) {
 
 	  if (acceptHeader.includes('text/csv')) {
 		// Respond with CSV
-		const json2csvParser = new json2csv();
-		const csvData = json2csvParser.parse(cachedContentObjects);
-
-		res.set('Content-Type', 'text/csv');
-		res.send(csvData);
+		const parser = new Parser({ header: true });
+        const csv = parser.parse(cachedContentObjects);
+        res.set('Content-Type', 'text/csv');
+        res.send(csv);
 	  } else {
 		// Default to JSON
 		res.set('Content-Type', 'application/json');

@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/theodi/LRS2k22/#readme",
   "dependencies": {
+    "@json2csv/plainjs": "^7.0.5",
     "adm-zip": "^0.5.10",
     "cheerio": "^1.0.0-rc.12",
     "cors": "^2.8.5",
@@ -27,7 +28,6 @@
     "express-session": "^1.17.3",
     "fs-extra": "^10.0.0",
     "html-to-docx": "^1.8.0",
-    "json2csv": "^6.0.0-alpha.2",
     "mongodb": "^3.6.6",
     "multer": "1.4.4-lts.1",
     "node-fetch": "^2.6.1",
