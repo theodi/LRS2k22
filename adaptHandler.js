@@ -349,12 +349,18 @@ function htmlToPlainText(html) {
     const $ = cheerio.load(html);
 
     // Find all <li> elements
-    $('li').each((index, listItem) => {
+    const listItems = $('li');
+
+    // Iterate over each <li> element
+    listItems.each((index, listItem) => {
         // Get the text content of the <li> element
         const listItemText = $(listItem).text().trim();
 
-        // Replace the <li> element with a plain text equivalent with a dash
-        $(listItem).replaceWith(`- ${listItemText}\n`);
+        // Determine whether to add a newline at the beginning or end
+        const newline = index === 0 ? '\n' : '';
+
+        // Replace the <li> element with a plain text equivalent with a dash and newline
+        $(listItem).replaceWith(`${newline}- ${listItemText}${index === listItems.length - 1 ? '' : '\n'}`);
     });
 
     // Get the text content of the modified HTML
