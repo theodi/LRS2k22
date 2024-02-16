@@ -1,4 +1,5 @@
 var ObjectId = require('mongodb').ObjectID;
+const cheerio = require('cheerio');
 const { ObjectID } = require('bson');
 const { Parser } = require('@json2csv/plainjs'); // Library to create CSV for output
 
@@ -327,13 +328,213 @@ exports.getCacheData = async function (req, res, sourceDb, cacheDb) {
 	}
 };
 
+function isQuestion(components){
+	let primaryComponent;
+	if (components.length === 1) {
+		// If there's only one component, it's the primary component
+		primaryComponent = components[0];
+	} else {
+		// Check for a component with .properties._feedback
+		const feedbackComponent = components.find(component => component.properties && component.properties._feedback);
+		if (feedbackComponent) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+};
+
+function htmlToPlainText(html) {
+    // Load the HTML string into a Cheerio instance
+    const $ = cheerio.load(html);
+
+    // Find all <li> elements
+    $('li').each((index, listItem) => {
+        // Get the text content of the <li> element
+        const listItemText = $(listItem).text().trim();
+
+        // Replace the <li> element with a plain text equivalent with a dash
+        $(listItem).replaceWith(`- ${listItemText}\n`);
+    });
+
+    // Get the text content of the modified HTML
+    const plainText = $('body').text().trim();
+
+    return plainText;
+}
+
+function getElementAsText(data,question) {
+	var ret = "";
+	if (data.displayTitle.trim() != "") {
+		if (question) {
+			ret += "Question:";
+		} else {
+			ret += "Title:"
+		}
+		ret += data.displayTitle.trim() + "\n";
+	}
+	if (data.body.trim() != "") {
+		ret += stripHtmlTags(htmlToPlainText(data.body)).replace(/&nbsp;/g, ' ').trim() + "\n\n";
+	}
+	if (data._extensions && data._extensions._extra && data._extensions._extra._isEnabled === true) {
+		(data._extensions._extra._items).forEach(item => {
+			if (item.title.trim() != "") {
+				ret += item.title.trim() + "\n";
+			}
+			if (item.body.trim() != "") {
+				ret += stripHtmlTags(htmlToPlainText(item.body)).replace(/&nbsp;/g, ' ').trim() + "\n\n";
+			}
+		});
+	}
+	if (data.properties) {
+		if (data.properties._feedback) {
+			//Question instruction
+			ret += data.properties.instruction + "\n";
+			(data.properties._items).forEach(item => {
+				if(item._options) {
+					ret += "- " + stripHtmlTags(item.text).replace(/&nbsp;/g, ' ').trim();
+					(item._options).forEach(option => {
+						if (option._isCorrect) {
+							ret += " (Correct answer: " + option.text + ")";
+						}
+					});
+					ret += "\n";
+				} else {
+					if (item._shouldBeSelected) {
+						ret += "- Correct answer: " + stripHtmlTags(item.text).replace(/&nbsp;/g, ' ').trim() + "\n";
+					} else {
+						ret += "- Incorrect answer: " + stripHtmlTags(item.text).replace(/&nbsp;/g, ' ').trim() + "\n";
+					}
+				}
+			});
+			ret += "\n";
+			if ( data.properties._feedback.correct ) {
+				ret += "Feedback for correct answer: " + stripHtmlTags(data.properties._feedback.correct).replace(/&nbsp;/g, ' ').trim() + "\n\n";
+			}
+			if (data.properties._feedback._incorrect.final ) {
+				ret += "Feedback for incorrect answer: " + stripHtmlTags(data.properties._feedback._incorrect.final).replace(/&nbsp;/g, ' ').trim() + "\n\n";
+			}
+		} else {
+			//Question instruction
+			ret += data.properties.instruction + "\n";
+
+			if (data.properties._completionBody) {
+				ret += data.properties._completionBody.trim() + "\n";
+			}
+
+			//Question items
+			try {
+				(data.properties._items).forEach(item => {
+					if (item.title.trim() != "") {
+						ret += item.title.trim() + "\n";
+						if (item.body.trim() != "") {
+							ret += stripHtmlTags(item.body).replace(/&nbsp;/g, ' ').trim() + "\n\n";
+						}
+					} else {
+						if (item.body.trim() != "") {
+							ret += stripHtmlTags(item.body).replace(/&nbsp;/g, ' ').trim() + "\n";
+						}
+						if (item.text.trim() != "") {
+							ret += stripHtmlTags(item.text).replace(/&nbsp;/g, ' ').trim() + "\n";
+						}
+					}
+				});
+			} catch (err) {
+				//console.log(err);
+			}
+    	}
+	}
+	//Feeedback
+
+	return ret;
+}
+
+function countWords(text) {
+    // Use regular expression to count words
+    const wordArray = text.trim().split(/\s+/);
+    return wordArray.length;
+}
+
+exports.getContentObjectTranscript = async function(req,res,dbo,id) {
+	const dbConnect = dbo.getDb();
+	try {
+
+		let chunks = [];
+		chunks[0] = "";
+		const chunkSize = parseInt(req.query.maxWords) || 10000;
+		let currentPage = parseInt(req.query.page) || 1;
+		let currentChunk = 0;
+		//HERE to get the last updated date (this is all from create 2 so it live to changes! Ideally needs to be from)
+	  	const data = await buildContentData(dbConnect, id);
+	  	var articles = data.articles;
+		for (var i=0;i<articles.length;i++) {
+			blocks = articles[i].blocks;
+			for (var b=0;b<blocks.length;b++) {
+				block = blocks[b];
+				var components = block.components;
+				var question = isQuestion(components);
+				let blockText = "";
+				blockText += getElementAsText(block,question);
+				for (var c=0;c<components.length;c++) {
+					component = components[c];
+					blockText += getElementAsText(component,question);
+				}
+				if (countWords(chunks[currentChunk] + blockText) <= chunkSize) {
+					chunks[currentChunk] = chunks[currentChunk] + blockText;
+				} else {
+					currentChunk += 1;
+					chunks[currentChunk] = "";
+					chunks[currentChunk] = chunks[currentChunk] + blockText;
+				}
+			}
+		}
+		const updatedAt = new Date(data.updatedAt);
+		const lastModified = updatedAt.toUTCString();
+		if (chunks.length > 1) {
+			const baseUrl = req.protocol + '://' + req.get('host') + req.baseUrl;
+			nextChunkUrl = baseUrl + req.path + "?maxWords=" + chunkSize + "&page=" + (currentPage + 1);
+			res.set('Link', `<${nextChunkUrl}>; rel="next"`);
+		}
+		res.set('Last-Modified', lastModified);
+		res.set('Content-Type', 'text/plain');
+		res.send(chunks[currentPage-1])
+	} catch (err) {
+	  console.error("Error:", err);
+	  if (err.message === "Content object not found") {
+		res.status(404).json({ error: "Content object not found" });
+	  } else {
+		res.status(500).json({ error: "An error occurred" });
+	  }
+	}
+}
+
+exports.getContentObjectHead = async function(req,res,dbo,id) {
+	const dbConnect = dbo.getDb();
+	try {
+		//HERE to get the last updated date (this is all from create 2 so it live to changes! Ideally needs to be from)
+	  	const data = await buildContentData(dbConnect, id);
+		const updatedAt = new Date(data.updatedAt);
+		const lastModified = updatedAt.toUTCString();
+		res.set('Last-Modified', lastModified);
+		return res.status(200).send();
+	} catch (err) {
+	  console.error("Error:", err);
+	  if (err.message === "Content object not found") {
+		res.status(404).json({ error: "Content object not found" });
+	  } else {
+		res.status(500).json({ error: "An error occurred" });
+	  }
+	}
+}
 
 // Function to handle JSON response
 exports.getContentObject = async function(req, res, dbo, id) {
 	const dbConnect = dbo.getDb();
-
 	try {
 	  const contentData = await buildContentData(dbConnect, id);
+	  const updatedAt = new Date(contentData.updatedAt);
+	  const lastModified = updatedAt.toUTCString();
+	  res.set('Last-Modified', lastModified);
 	  res.json(contentData);
 	} catch (err) {
 	  console.error("Error:", err);
@@ -343,7 +544,7 @@ exports.getContentObject = async function(req, res, dbo, id) {
 		res.status(500).json({ error: "An error occurred" });
 	  }
 	}
-};
+}
 
 /*
  * Updated function 2024-01-03
