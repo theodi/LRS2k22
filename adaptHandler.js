@@ -466,12 +466,12 @@ exports.getContentObjectTranscript = async function(req,res,dbo,id) {
 	try {
 
 		let chunks = [];
-		chunks[0] = "";
 		const chunkSize = parseInt(req.query.maxWords) || 10000;
 		let currentPage = parseInt(req.query.page) || 1;
 		let currentChunk = 0;
 		//HERE to get the last updated date (this is all from create 2 so it live to changes! Ideally needs to be from)
 	  	const data = await buildContentData(dbConnect, id);
+		chunks[0] = "Module title: " + data.displayTitle.trim() + "\n\n";
 	  	var articles = data.articles;
 		for (var i=0;i<articles.length;i++) {
 			blocks = articles[i].blocks;
