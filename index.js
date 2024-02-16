@@ -517,17 +517,35 @@ app.get('/api/courseDetail', function(req,res) {
   adaptapi.getCourses(req, res, dbo);
 });
 
+app.head('/api/contentObject/:id/transcript', function(req,res) {
+  //if (!req.isAuthenticated() && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
+  //if (req.session.profile.userType == "user") { forbidden(res); return; }
+  adaptapi.getContentObjectHead(req, res, adaptdb, req.params.id);
+});
+
+app.get('/api/contentObject/:id/transcript', function(req,res) {
+  //if (!req.isAuthenticated() && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
+  //if (req.session.profile.userType == "user") { forbidden(res); return; }
+  adaptapi.getContentObjectTranscript(req, res, adaptdb, req.params.id);
+});
+
+app.head('/api/contentObject/:id', function(req,res) {
+  if (!req.isAuthenticated() && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
+  if (req.session.profile.userType == "user") { forbidden(res); return; }
+  adaptapi.getContentObjectHead(req, res, adaptdb, req.params.id);
+});
+
 app.get('/api/contentObject/:id', function(req,res) {
   if (!req.isAuthenticated() && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
   if (req.session.profile.userType == "user") { forbidden(res); return; }
   adaptapi.getContentObject(req, res, adaptdb, req.params.id);
 });
+
 app.get('/api/course/:id/config', function(req,res) {
   if (!req.isAuthenticated() && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
   if (req.session.profile.userType == "user") { forbidden(res); return; }
   adaptapi.getCourseConfig(req, res, adaptdb, req.params.id);
 });
-
 
 /*
  * Get Users
