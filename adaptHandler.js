@@ -3,7 +3,6 @@ const cheerio = require('cheerio');
 const { ObjectID } = require('bson');
 const { Parser } = require('@json2csv/plainjs'); // Library to create CSV for output
 
-// Function to retrieve an object by ID and handle tags
 async function getObjectById(dbConnect, collection, id) {
 	collection = collection + "s";
 
@@ -36,10 +35,9 @@ async function getObjectById(dbConnect, collection, id) {
 		reject(err);
 	  }
 	});
-  }
+}
 
-  // Function to handle JSON response
-  exports.getObjectById = async function(req, res, dbo, collection, id) {
+exports.getObjectById = async function(req, res, dbo, collection, id) {
 	const dbConnect = dbo.getDb();
 
 	try {
@@ -56,8 +54,7 @@ async function getObjectById(dbConnect, collection, id) {
 	  console.error("Error:", err);
 	  res.status(500).json({ error: "An error occurred" });
 	}
-  };
-
+};
 
 exports.findObjectsWithParentId = function(req,res,dbo,collection,parent_id) {
 	var dbConnect = dbo.getDb();
@@ -71,12 +68,10 @@ exports.findObjectsWithParentId = function(req,res,dbo,collection,parent_id) {
         });
 }
 
-// Function to retrieve items from the collection
 async function getItemsFromCollection(dbConnect, collection) {
 	return await dbConnect.collection(collection).find({}).toArray();
 }
 
-  // Function to handle JSON response
 exports.getObjectsFromCollection = async function(req, res, dbo, collection) {
 	const dbConnect = dbo.getDb();
 
@@ -92,7 +87,32 @@ exports.getObjectsFromCollection = async function(req, res, dbo, collection) {
 
 function stripHtmlTags(input) {
 	return input.replace(/<[^>]*>/g, " ");
-  }
+}
+
+function htmlToPlainText(html) {
+    // Load the HTML string into a Cheerio instance
+    const $ = cheerio.load(html);
+
+    // Find all <li> elements
+    const listItems = $('li');
+
+    // Iterate over each <li> element
+    listItems.each((index, listItem) => {
+        // Get the text content of the <li> element
+        const listItemText = $(listItem).text().trim();
+
+        // Determine whether to add a newline at the beginning or end
+        const newline = index === 0 ? '\n' : '';
+
+        // Replace the <li> element with a plain text equivalent with a dash and newline
+        $(listItem).replaceWith(`${newline}- ${listItemText}${index === listItems.length - 1 ? '' : '\n'}`);
+    });
+
+    // Get the text content of the modified HTML
+    const plainText = $('body').text().trim();
+
+    return plainText;
+}
 
 async function getWordCount(object) {
 	var count = 0;
@@ -158,10 +178,6 @@ async function getWordCount(object) {
 	return count;
 }
 
-/*
- * New function 2024-01-03
- */
-// Function to build contentData
 async function buildContentData(dbConnect, id) {
 	const contentCollection = "contentobjects";
 	const articlesCollection = "articles";
@@ -344,31 +360,6 @@ function isQuestion(components){
 	}
 };
 
-function htmlToPlainText(html) {
-    // Load the HTML string into a Cheerio instance
-    const $ = cheerio.load(html);
-
-    // Find all <li> elements
-    const listItems = $('li');
-
-    // Iterate over each <li> element
-    listItems.each((index, listItem) => {
-        // Get the text content of the <li> element
-        const listItemText = $(listItem).text().trim();
-
-        // Determine whether to add a newline at the beginning or end
-        const newline = index === 0 ? '\n' : '';
-
-        // Replace the <li> element with a plain text equivalent with a dash and newline
-        $(listItem).replaceWith(`${newline}- ${listItemText}${index === listItems.length - 1 ? '' : '\n'}`);
-    });
-
-    // Get the text content of the modified HTML
-    const plainText = $('body').text().trim();
-
-    return plainText;
-}
-
 function getElementAsText(data,question) {
 	var ret = "";
 	if (data.displayTitle.trim() != "") {
@@ -464,7 +455,6 @@ function countWords(text) {
 exports.getContentObjectTranscript = async function(req,res,dbo,id) {
 	const dbConnect = dbo.getDb();
 	try {
-
 		let chunks = [];
 		const chunkSize = parseInt(req.query.maxWords) || 10000;
 		let currentPage = parseInt(req.query.page) || 1;
@@ -514,6 +504,81 @@ exports.getContentObjectTranscript = async function(req,res,dbo,id) {
 	}
 }
 
+exports.getContentObjectOutcomesMetadata = async function(req,res,dbo,id) {
+	const dbConnect = dbo.getDb();
+	const context = req.query.programme || null;
+	try {
+		let chunks = [];
+		const chunkSize = parseInt(req.query.maxWords) || 10000;
+		let currentPage = parseInt(req.query.page) || 1;
+		let currentChunk = 0;
+		//HERE to get the last updated date (this is all from create 2 so it live to changes! Ideally needs to be from)
+	  	const data = await buildContentData(dbConnect, id);
+		const courseData = await getObjectById(dbConnect, "course", data._courseId);
+		chunks[0] = "Module title: " + data.displayTitle.trim() + "\n\n";
+		const updatedAt = new Date(data.updatedAt);
+		const lastModified = updatedAt.toUTCString();
+
+		let aim = "Aim: " + stripHtmlTags(data._extensions._skillsFramework.aim).trim() + "\n\n";
+		chunks[0] += aim;
+		let learningOutcomesText = "Learning outcomes:\n";
+
+		const learningOutcomes = data._extensions._skillsFramework.learningOutcomes;
+		for (var i=0;i<learningOutcomes.length;i++) {
+			learningOutcomesText += " - " + learningOutcomes[i].outcome + "\n";
+		}
+		chunks[0] += learningOutcomesText + "\n";
+
+		let reflectiveQuestionsText = "Reflective questions/exercises:\n";
+		const reflectiveQuestions = data._extensions._skillsFramework.reflectiveQuestions;
+		for (var i=0;i<reflectiveQuestions.length;i++) {
+			reflectiveQuestionsText += " - " + reflectiveQuestions[i].question + "\n";
+		}
+		chunks[0] += reflectiveQuestionsText;
+		const programmes = courseData._extensions._skillsFramework._items;
+		for (var i=0;i<programmes.length;i++) {
+			let programmesText = "\n\nPart of programme: " + programmes[i].title + "\n\n";
+			programmesText += "Programme aim: " + stripHtmlTags(programmes[i].aim).trim() + "\n\n";
+			programmesText += "Position of module in programme: " + stripHtmlTags(programmes[i].positionDescription).trim() + "\n\n";
+			programmesText += "Related programme learning outcomes: \n";
+			const programmeLOs = programmes[i].learningOutcomes;
+			for (var j=0;j<programmeLOs.length;j++) {
+				programmesText += " - " + programmeLOs[j].outcome + "\n";
+			}
+			programmesText += "\n";
+			programmesText += "Programme specific reflective questions for module: \n";
+			const programmeReflectiveQuestions = programmes[i].reflectiveQuestions;
+			for (var j=0;j<programmeReflectiveQuestions.length;j++) {
+				programmesText += " - " + programmeReflectiveQuestions[j].question + "\n";
+			}
+			if (context) {
+				if (programmes[i].uri === context) {
+					chunks[0] += programmesText;
+				}
+			} else {
+				chunks[0] += programmesText;
+			}
+		}
+
+		if (chunks.length > 1) {
+			const baseUrl = req.protocol + '://' + req.get('host') + req.baseUrl;
+			nextChunkUrl = baseUrl + req.path + "?maxWords=" + chunkSize + "&page=" + (currentPage + 1);
+			res.set('Link', `<${nextChunkUrl}>; rel="next"`);
+		}
+
+		res.set('Last-Modified', lastModified);
+		res.set('Content-Type', 'text/plain');
+		res.send(chunks[currentPage-1])
+	} catch (err) {
+		console.error("Error:", err);
+		if (err.message === "Content object not found") {
+		  res.status(404).json({ error: "Content object not found" });
+		} else {
+		  res.status(500).json({ error: "An error occurred" });
+		}
+	}
+}
+
 exports.getContentObjectHead = async function(req,res,dbo,id) {
 	const dbConnect = dbo.getDb();
 	try {
@@ -533,7 +598,6 @@ exports.getContentObjectHead = async function(req,res,dbo,id) {
 	}
 }
 
-// Function to handle JSON response
 exports.getContentObject = async function(req, res, dbo, id) {
 	const dbConnect = dbo.getDb();
 	try {
@@ -552,9 +616,6 @@ exports.getContentObject = async function(req, res, dbo, id) {
 	}
 }
 
-/*
- * Updated function 2024-01-03
- */
 exports.getCourseConfig = function(req, res, dbo, id) {
 	var collection = "configs";
 	var dbConnect = dbo.getDb();

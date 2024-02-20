@@ -529,9 +529,15 @@ app.get('/api/contentObject/:id/transcript', function(req,res) {
   adaptapi.getContentObjectTranscript(req, res, adaptdb, req.params.id);
 });
 
+app.get('/api/contentObject/:id/outcomesMetadata', function(req,res) {
+  //if (!req.isAuthenticated() && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
+  //if (req.session.profile.userType == "user") { forbidden(res); return; }
+  adaptapi.getContentObjectOutcomesMetadata(req, res, adaptdb, req.params.id);
+});
+
 app.head('/api/contentObject/:id', function(req,res) {
-  if (!req.isAuthenticated() && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
-  if (req.session.profile.userType == "user") { forbidden(res); return; }
+  //if (!req.isAuthenticated() && req.headers.host.split(":")[0] != "localhost") { unauthorised(res); return; }
+  //if (req.session.profile.userType == "user") { forbidden(res); return; }
   adaptapi.getContentObjectHead(req, res, adaptdb, req.params.id);
 });
 
