@@ -1,22 +1,76 @@
 <!-- views/profile.ejs -->
 <%- include('../partials/header') %>
-  <div class="container">
-    <div class="jumbotron">
-      <h1 class="text-primary  text-center"><span class="fa fa-user"></span> Profile Information</h1>
-        <div class="row">
-          <div class="col-sm-6">
-            <div class="well">
-              <p>
-                <strong>Id</strong>: <%= user.id %><br>
-                <strong>Email</strong>: <%= user.emails[0].value %><br>
-                <strong>Name</strong>: <%= user.displayName %><br>
-                <strong>Permissions</strong>: <%= profile.userType %><br>
-                <strong>Last login</strong>: <%= profile.lastLogin %><br>
-                <strong>Your IP</strong>: <%= profile.ip %><br>
-              </p>
-              </div>
-          </div>
+<div class="container">
+  <div class="jumbotron">
+    <h1 class="text-primary text-center"><span class="fa fa-user"></span> Profile Information</h1>
+    <!-- Response banner -->
+    <div id="responseBanner" class="alert alert-info" style="display: none;"></div>
+    <div class="row">
+      <div class="col-sm-6">
+        <div class="well">
+          <p>
+            <strong>Id</strong>: <%= user.id %><br>
+            <strong>Email</strong>: <%= user.emails[0].value %><br>
+            <strong>Name</strong>: <%= user.displayName %><br>
+            <strong>Permissions</strong>: <%= profile.userType %><br>
+            <strong>Last login</strong>: <%= profile.lastLogin %><br>
+            <strong>Your IP</strong>: <%= profile.ip %><br>
+          </p>
+          <!-- Button to make the API call -->
+          <button id="createAccessBtn" class="btn btn-primary">Click here to access create2.learndata.info</button>
+        </div>
       </div>
-     </div>
+    </div>
   </div>
+</div>
 <%- include('../partials/footer') %>
+
+<!-- Script to handle button click and make API call -->
+<script>
+  // Function to display response message
+  function displayMessage(message) {
+    const responseBanner = document.getElementById('responseBanner');
+    responseBanner.innerHTML = message;
+    responseBanner.style.display = 'block';
+    setTimeout(() => {
+      responseBanner.style.display = 'none';
+    }, 5000); // Display for 5 seconds
+  }
+
+  // Function to handle button click
+  document.getElementById('createAccessBtn').addEventListener('click', async () => {
+    // Disable the button while the function is running
+    document.getElementById('createAccessBtn').disabled = true;
+
+    try {
+      // Make POST request to the API endpoint
+      const response = await fetch('/api/createAccess', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + 'YOUR_ACCESS_TOKEN' // Add your authentication token here
+        },
+        body: JSON.stringify({
+          ip: '<%= profile.ip %>', // Pass the IP address from profile
+          email: '<%= user.emails[0].value %>' // Pass the email address from profile
+        })
+      });
+      // Parse response JSON
+      const data = await response.json();
+      // Display response message
+      displayMessage(data.message);
+
+      // If the update is successful, open a new tab to http://create2.learndata.info
+      if (response.ok) {
+        window.open('http://create2.learndata.info', '_blank');
+      }
+    } catch (error) {
+      console.error('Error making API call:', error.message);
+      // Display error message
+      displayMessage('Error making API call');
+    } finally {
+      // Enable the button after the function finishes running
+      document.getElementById('createAccessBtn').disabled = false;
+    }
+  });
+</script>

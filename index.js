@@ -389,6 +389,7 @@ app.get('/profile', function(req, res) {
       });
 });
 */
+
 app.get('/profile', function(req, res) {
   if (!req.isAuthenticated()) {
     unauthorised(res);
@@ -398,6 +399,9 @@ app.get('/profile', function(req, res) {
 
   // Get the user's IP address
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  if (ip && ip.includes(',')) {
+    ip = ip.split(',')[0].trim();
+  }
 
   var dbConnect = dbo.getDb();
   dbConnect
@@ -413,33 +417,7 @@ app.get('/profile', function(req, res) {
         res.locals.profile.ip = ip;
 
         // Make POST request to firewall manager
-        fetch(`${process.env.FIREWALL_MANAGER}/firewall`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            ip: ip,
-            email: email
-          })
-        })
-        .then(response => {
-          if (!response.ok) {
-            throw new Error('Failed to fetch firewall status');
-          }
-          return response.json();
-        })
-        .then(data => {
-          res.locals.profile.firewallStatus = data;
-          req.session.profile = res.locals.profile;
-          res.render('pages/profile');
-        })
-        .catch(error => {
-          console.error("Error making POST request to firewall manager:", error.message);
-          res.locals.profile.firewallStatus = { error: 'Internal Server Error' };
-          req.session.profile = res.locals.profile;
-          res.render('pages/profile');
-        });
+        res.render('pages/profile');
       });
 });
 
@@ -735,6 +713,44 @@ app.post('/course/:courseId/resetPageLevelProgress', async function(req,res) {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+
+app.post('/api/createAccess', async function (req, res) {
+  // Check authentication
+  if (!req.isAuthenticated()) {
+      unauthorised(res);
+      return;
+  }
+
+  // Extract data from the request body
+  const { ip, email } = req.body;
+
+  try {
+      // Make a request to the firewall manager endpoint
+      const response = await fetch(`${process.env.FIREWALL_MANAGER}/firewall`, {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ ip, email })
+      });
+
+      // Check if the request was successful
+      if (!response.ok) {
+          throw new Error('Failed to fetch firewall status');
+      }
+
+      // Parse the response JSON
+      const data = await response.json();
+
+      // Send the response back to the client
+      res.json(data);
+  } catch (error) {
+      // Handle any errors
+      console.error('Error fetching firewall status:', error.message);
+      res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 
 // Routes handled elsewhere
 const packageHandler = require('./packageHandler');
