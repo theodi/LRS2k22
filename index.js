@@ -368,9 +368,12 @@ function forbidden(res) {
   return res.status(401).render("errors/403");
 }
 
+/*
+ * Non firewall function
 app.get('/profile', function(req, res) {
   if (!req.isAuthenticated()) { unauthorised(res); return; }
   res.locals.pageTitle = "Profile page";
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
   var dbConnect = dbo.getDb();
   dbConnect
       .collection("Users")
@@ -380,10 +383,66 @@ app.get('/profile', function(req, res) {
         res.locals.profile.userType = items[0].userType;
         res.locals.profile.suspended = items[0].suspended;
         res.locals.profile.lastLogin = items[0].lastLogin;
+        res.locals.profile.ip = ip;
         req.session.profile = res.locals.profile;
         res.render('pages/profile');
       });
 });
+*/
+app.get('/profile', function(req, res) {
+  if (!req.isAuthenticated()) {
+    unauthorised(res);
+    return;
+  }
+  res.locals.pageTitle = "Profile page";
+
+  // Get the user's IP address
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+
+  var dbConnect = dbo.getDb();
+  dbConnect
+      .collection("Users")
+      .find({'emails.0.value': email})
+      .toArray(function(err, items) {
+        res.locals.profile = {};
+        res.locals.profile.userType = items[0].userType;
+        res.locals.profile.suspended = items[0].suspended;
+        res.locals.profile.lastLogin = items[0].lastLogin;
+
+        // Add the user's IP address to the profile
+        res.locals.profile.ip = ip;
+
+        // Make POST request to firewall manager
+        fetch(`${process.env.FIREWALL_MANAGER}/firewall`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            ip: ip,
+            email: email
+          })
+        })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Failed to fetch firewall status');
+          }
+          return response.json();
+        })
+        .then(data => {
+          res.locals.profile.firewallStatus = data;
+          req.session.profile = res.locals.profile;
+          res.render('pages/profile');
+        })
+        .catch(error => {
+          console.error("Error making POST request to firewall manager:", error.message);
+          res.locals.profile.firewallStatus = { error: 'Internal Server Error' };
+          req.session.profile = res.locals.profile;
+          res.render('pages/profile');
+        });
+      });
+});
+
 
 app.post("/moodle/course-extractor", upload.single('file'), async (req, res) => {
   try {
