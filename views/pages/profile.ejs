@@ -3,8 +3,6 @@
 <div class="container">
   <div class="jumbotron">
     <h1 class="text-primary text-center"><span class="fa fa-user"></span> Profile Information</h1>
-    <!-- Response banner -->
-    <div id="responseBanner" class="alert alert-info" style="display: none;"></div>
     <div class="row">
       <div class="col-sm-6">
         <div class="well">
@@ -16,11 +14,18 @@
             <strong>Last login</strong>: <%= profile.lastLogin %><br>
             <strong>Your IP</strong>: <%= profile.ip %><br>
           </p>
-          <!-- Button to make the API call -->
-          <button id="createAccessBtn" class="btn btn-primary">Click here to access create2.learndata.info</button>
         </div>
       </div>
     </div>
+    <h1 class="text-primary text-center"><span class="fa fa-user"></span>Access create2.learndata.info</h1>
+    <div id="responseBanner" class="alert alert-info" style="display: none;"></div>
+    <div class="row">
+      <div class="col-sm-6">
+        <div class="well">
+          <p><b>Warning: DO NOT do this from a public network, e.g. airport wifi!</b></p>
+          <button id="createAccessBtn" class="btn btn-primary">Click here to access create2.learndata.info</button>
+        </div>
+      </div>
   </div>
 </div>
 <%- include('../partials/footer') %>
