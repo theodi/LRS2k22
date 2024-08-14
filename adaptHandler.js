@@ -360,6 +360,81 @@ function isQuestion(components){
 	}
 };
 
+function getElementAsJson(data, question) {
+    let json = {};
+
+    if (data.displayTitle.trim() !== "") {
+        json.title = data.displayTitle.trim();
+        json.type = question ? "Question" : "Title";
+    }
+
+    if (data.body.trim() !== "") {
+        json.body = data.body.trim();  // Retain HTML content as is
+    }
+
+    if (data._extensions && data._extensions._extra && data._extensions._extra._isEnabled === true) {
+        json.extraItems = (data._extensions._extra._items || []).map(item => {
+            let extraItem = {};
+            if (item.title.trim() !== "") {
+                extraItem.title = item.title.trim();
+            }
+            if (item.body.trim() !== "") {
+                extraItem.body = item.body.trim();  // Retain HTML content as is
+            }
+            return extraItem;
+        });
+    }
+
+    if (data.properties) {
+        json.properties = {};
+        if (data.properties._feedback) {
+            json.properties.instruction = data.properties.instruction;
+
+            json.properties.items = (data.properties._items || []).map(item => {
+                let itemDetails = {};
+                if (item._options) {
+                    itemDetails.text = item.text.trim();  // Retain HTML content as is
+                    itemDetails.options = (item._options || []).map(option => ({
+                        text: option.text.trim(),
+                        isCorrect: option._isCorrect
+                    }));
+                } else {
+                    itemDetails.text = item.text.trim();  // Retain HTML content as is
+                    itemDetails.shouldBeSelected = item._shouldBeSelected;
+                }
+                return itemDetails;
+            });
+
+            json.properties.feedback = {
+                correct: data.properties._feedback.correct ? data.properties._feedback.correct.trim() : undefined,
+                incorrect: data.properties._feedback._incorrect.final ? data.properties._feedback._incorrect.final.trim() : undefined
+            };
+        } else {
+            json.properties.instruction = data.properties.instruction;
+            if (data.properties._completionBody) {
+                json.properties.completionBody = data.properties._completionBody.trim();
+            }
+
+            json.properties.items = (data.properties._items || []).map(item => {
+                let itemDetails = {};
+                if (item.title !== "") {
+                    itemDetails.title = item.title;
+                }
+                if (item.body !== "") {
+                    itemDetails.body = item.body;  // Retain HTML content as is
+                }
+                if (item.text !== "") {
+                    itemDetails.text = item.text;  // Retain HTML content as is
+                }
+                return itemDetails;
+            });
+        }
+    }
+
+    return json;
+}
+
+
 function getElementAsText(data,question) {
 	var ret = "";
 	if (data.displayTitle.trim() != "") {
@@ -452,56 +527,112 @@ function countWords(text) {
     return wordArray.length;
 }
 
-exports.getContentObjectTranscript = async function(req,res,dbo,id) {
-	const dbConnect = dbo.getDb();
-	try {
-		let chunks = [];
-		const chunkSize = parseInt(req.query.maxWords) || 10000;
-		let currentPage = parseInt(req.query.page) || 1;
-		let currentChunk = 0;
-		//HERE to get the last updated date (this is all from create 2 so it live to changes! Ideally needs to be from)
-	  	const data = await buildContentData(dbConnect, id);
-		chunks[0] = "Module title: " + data.displayTitle.trim() + "\n\n";
-	  	var articles = data.articles;
-		for (var i=0;i<articles.length;i++) {
-			blocks = articles[i].blocks;
-			for (var b=0;b<blocks.length;b++) {
-				block = blocks[b];
-				var components = block.components;
-				var question = isQuestion(components);
-				let blockText = "";
-				blockText += getElementAsText(block,question);
-				for (var c=0;c<components.length;c++) {
-					component = components[c];
-					blockText += getElementAsText(component,question);
-				}
-				if (countWords(chunks[currentChunk] + blockText) <= chunkSize) {
-					chunks[currentChunk] = chunks[currentChunk] + blockText;
-				} else {
-					currentChunk += 1;
-					chunks[currentChunk] = "";
-					chunks[currentChunk] = chunks[currentChunk] + blockText;
-				}
-			}
-		}
-		const updatedAt = new Date(data.updatedAt);
-		const lastModified = updatedAt.toUTCString();
-		if (chunks.length > 1) {
-			const baseUrl = req.protocol + '://' + req.get('host') + req.baseUrl;
-			nextChunkUrl = baseUrl + req.path + "?maxWords=" + chunkSize + "&page=" + (currentPage + 1);
-			res.set('Link', `<${nextChunkUrl}>; rel="next"`);
-		}
-		res.set('Last-Modified', lastModified);
-		res.set('Content-Type', 'text/plain');
-		res.send(chunks[currentPage-1])
-	} catch (err) {
-	  console.error("Error:", err);
-	  if (err.message === "Content object not found") {
-		res.status(404).json({ error: "Content object not found" });
-	  } else {
-		res.status(500).json({ error: "An error occurred" });
-	  }
-	}
+exports.getContentObjectTranscript = async function(req, res, dbo, id) {
+    const dbConnect = dbo.getDb();
+    try {
+        let chunks = [];
+        const chunkSize = parseInt(req.query.maxWords) || 10000;
+        let currentPage = parseInt(req.query.page) || 1;
+        let currentChunk = 0;
+
+        // Fetch the content data from the database
+        const data = await buildContentData(dbConnect, id);
+        let articles = data.articles;
+
+        // Create text chunks
+        chunks[0] = "Module title: " + data.displayTitle.trim() + "\n\n";
+		const module = {};
+		module.title = data.displayTitle;
+		try { module.aim = data._extensions._skillsFramework.aim; } catch (err) {}
+		try { module.learningOutcomes = data._extensions._skillsFramework.learningOutcomes; } catch (err) {}
+		try { module.reflectiveQuestions = data._extensions._skillsFramework.reflectiveQuestions; } catch (err) {}
+        for (let i = 0; i < articles.length; i++) {
+            let blocks = articles[i].blocks;
+            for (let b = 0; b < blocks.length; b++) {
+                let block = blocks[b];
+                let components = block.components;
+                let question = isQuestion(components);
+                let blockText = getElementAsText(block, question);
+                for (let c = 0; c < components.length; c++) {
+                    let component = components[c];
+                    blockText += getElementAsText(component, question);
+                }
+                if (countWords(chunks[currentChunk] + blockText) <= chunkSize) {
+                    chunks[currentChunk] = chunks[currentChunk] + blockText;
+                } else {
+                    currentChunk += 1;
+                    chunks[currentChunk] = "";
+                    chunks[currentChunk] = chunks[currentChunk] + blockText;
+                }
+            }
+        }
+
+        const updatedAt = new Date(data.updatedAt);
+        const lastModified = updatedAt.toUTCString();
+
+        // Handle the response based on the Accept header
+        const acceptHeader = req.headers.accept || 'text/plain';
+        if (acceptHeader.includes('application/json')) {
+            // Build JSON response containing only the elements included in the text response
+            const jsonResponse = [];
+            let currentChunkIndex = currentPage - 1;
+
+            for (let i = 0; i < articles.length; i++) {
+                let article = articles[i];
+                let articleBlocks = [];
+
+                for (let b = 0; b < article.blocks.length; b++) {
+                    let block = article.blocks[b];
+                    let components = block.components;
+                    let blockJson = getElementAsJson(block, isQuestion(components));
+
+                    let blockContent = {
+                        block: blockJson,
+                        components: components.map(component => getElementAsJson(component, isQuestion([component])))
+                    };
+
+                    articleBlocks.push(blockContent);
+
+                    // Add block to the JSON response if it's part of the current chunk
+                    if (chunks[currentChunkIndex].includes(getElementAsText(block, isQuestion(components)))) {
+                        jsonResponse.push({
+							module: module,
+                            content: articleBlocks
+                        });
+                    }
+                }
+            }
+
+            if (chunks.length > 1) {
+                const baseUrl = req.protocol + '://' + req.get('host') + req.baseUrl;
+                let nextChunkUrl = `${baseUrl}${req.path}?maxWords=${chunkSize}&page=${currentPage + 1}`;
+                res.set('Link', `<${nextChunkUrl}>; rel="next"`);
+            }
+
+            res.set('Last-Modified', lastModified);
+            res.set('Content-Type', 'application/json');
+            res.json(jsonResponse);
+
+        } else {
+            // Default to text/plain response
+            if (chunks.length > 1) {
+                const baseUrl = req.protocol + '://' + req.get('host') + req.baseUrl;
+                let nextChunkUrl = `${baseUrl}${req.path}?maxWords=${chunkSize}&page=${currentPage + 1}`;
+                res.set('Link', `<${nextChunkUrl}>; rel="next"`);
+            }
+
+            res.set('Last-Modified', lastModified);
+            res.set('Content-Type', 'text/plain');
+            res.send(chunks[currentPage - 1]);
+        }
+    } catch (err) {
+        console.error("Error:", err);
+        if (err.message === "Content object not found") {
+            res.status(404).json({ error: "Content object not found" });
+        } else {
+            res.status(500).json({ error: "An error occurred" });
+        }
+    }
 }
 
 exports.getContentObjectOutcomesMetadata = async function(req,res,dbo,id) {
