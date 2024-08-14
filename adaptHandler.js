@@ -710,23 +710,40 @@ exports.getContentObjectOutcomesMetadata = async function(req,res,dbo,id) {
 	}
 }
 
-exports.getContentObjectHead = async function(req,res,dbo,id) {
-	const dbConnect = dbo.getDb();
-	try {
-		//HERE to get the last updated date (this is all from create 2 so it live to changes! Ideally needs to be from)
-	  	const data = await buildContentData(dbConnect, id);
-		const updatedAt = new Date(data.updatedAt);
-		const lastModified = updatedAt.toUTCString();
-		res.set('Last-Modified', lastModified);
-		return res.status(200).send();
-	} catch (err) {
-	  console.error("Error:", err);
-	  if (err.message === "Content object not found") {
-		res.status(404).json({ error: "Content object not found" });
-	  } else {
-		res.status(500).json({ error: "An error occurred" });
-	  }
-	}
+exports.getContentObjectHead = async function(req, res, dbo, id) {
+    const dbConnect = dbo.getDb();
+
+    try {
+        // Fetch the data from the database
+        const data = await buildContentData(dbConnect, id);
+
+        // Get the last modified date and format it
+        const updatedAt = new Date(data.updatedAt);
+        const lastModified = updatedAt.toUTCString();
+
+        // Determine the desired content type from the Accept header
+        const acceptHeader = req.headers.accept || 'application/json';
+        if (acceptHeader.includes('application/json')) {
+            // Set content-type to application/json (if needed for other purposes)
+            res.setHeader('Content-Type', 'application/json');
+        } else {
+            // Set content-type to text/plain (if needed for other purposes)
+            res.setHeader('Content-Type', 'text/plain');
+        }
+
+        // Set the Last-Modified header
+        res.setHeader('Last-Modified', lastModified);
+
+        // Send an empty response body with a 200 status
+        return res.status(200).send();
+    } catch (err) {
+        console.error("Error:", err);
+        if (err.message === "Content object not found") {
+            return res.status(404).json({ error: "Content object not found" });
+        } else {
+            return res.status(500).json({ error: "An error occurred" });
+        }
+    }
 }
 
 exports.getContentObject = async function(req, res, dbo, id) {
