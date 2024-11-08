@@ -86,6 +86,9 @@ exports.getObjectsFromCollection = async function(req, res, dbo, collection) {
 };
 
 function stripHtmlTags(input) {
+	if (!input) {
+		return input;
+	}
 	return input.replace(/<[^>]*>/g, " ");
 }
 
@@ -462,23 +465,27 @@ function getElementAsText(data,question) {
 		if (data.properties._feedback) {
 			//Question instruction
 			ret += data.properties.instruction + "\n";
-			(data.properties._items).forEach(item => {
-				if(item._options) {
-					ret += "- " + stripHtmlTags(item.text).replace(/&nbsp;/g, ' ').trim();
-					(item._options).forEach(option => {
-						if (option._isCorrect) {
-							ret += " (Correct answer: " + option.text + ")";
+			try {
+				(data.properties._items).forEach(item => {
+					if(item._options) {
+						if (item.text) {
+							ret += "- " + stripHtmlTags(item.text).replace(/&nbsp;/g, ' ').trim();
 						}
-					});
-					ret += "\n";
-				} else {
-					if (item._shouldBeSelected) {
-						ret += "- Correct answer: " + stripHtmlTags(item.text).replace(/&nbsp;/g, ' ').trim() + "\n";
+						(item._options).forEach(option => {
+							if (option._isCorrect) {
+								ret += " (Correct answer: " + option.text + ")";
+							}
+						});
+						ret += "\n";
 					} else {
-						ret += "- Incorrect answer: " + stripHtmlTags(item.text).replace(/&nbsp;/g, ' ').trim() + "\n";
+						if (item._shouldBeSelected) {
+							ret += "- Correct answer: " + stripHtmlTags(item.text).replace(/&nbsp;/g, ' ').trim() + "\n";
+						} else {
+							ret += "- Incorrect answer: " + stripHtmlTags(item.text).replace(/&nbsp;/g, ' ').trim() + "\n";
+						}
 					}
-				}
-			});
+				});
+			} catch(err) {}
 			ret += "\n";
 			if ( data.properties._feedback.correct ) {
 				ret += "Feedback for correct answer: " + stripHtmlTags(data.properties._feedback.correct).replace(/&nbsp;/g, ' ').trim() + "\n\n";
