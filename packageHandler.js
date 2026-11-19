@@ -96,9 +96,13 @@ router.get('/:packageType', (req, res) => {
   const courseId = getCourseId(req);
   const packagesDir = path.join(__dirname, 'packages', courseId, packageType);
 
+  // Avoid browsers caching empty/missing package lists as 304 forever
+  res.set('Cache-Control', 'no-store');
+
   fs.readdir(packagesDir, (err, files) => {
     if (err) {
-      return res.status(200).json({});
+      // No package dir yet (e.g. source uploaded before any build) — still return a packages array
+      return res.status(200).json({ packages: [] });
     }
 
     // Filter out any non-zip files

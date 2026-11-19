@@ -439,6 +439,17 @@ app.get('/moodle/course-extractor', function(req,res) {
   res.render('pages/moodle-extractor');
 });
 
+// Permanent redirect: course ID changed (preserve path/query, e.g. /packages/build/latest)
+const OLD_COURSE_ID = '65981b1473ccdabe37dc241b';
+const NEW_COURSE_ID = '6afef9375e03672a497fd22b';
+app.use(function(req, res, next) {
+  const oldPrefix = '/course/' + OLD_COURSE_ID;
+  if (req.path === oldPrefix || req.path.startsWith(oldPrefix + '/')) {
+    return res.redirect(301, req.originalUrl.replace(oldPrefix, '/course/' + NEW_COURSE_ID));
+  }
+  next();
+});
+
 app.get('/courses', function(req, res) {
   if (!req.isAuthenticated()) { unauthorised(res); return; }
   if (req.session.profile.userType == "user") { forbidden(res); return; }

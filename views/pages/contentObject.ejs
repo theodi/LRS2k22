@@ -291,11 +291,11 @@
                     const buildData = await buildResponse.json();
                     const sourceData = await sourceResponse.json();
 
-                    // Display BUILD packages
-                    displayPackageSection(buildData.packages, courseId, 'build');
+                    // Display BUILD packages (API may omit packages when none exist yet)
+                    displayPackageSection(buildData.packages || [], courseId, 'build');
 
                     // Display source packages
-                    displayPackageSection(sourceData.packages, courseId, 'source');
+                    displayPackageSection(sourceData.packages || [], courseId, 'source');
                 } else {
                     displayMessage('Error fetching packages', 'error', "messageBanner");
                 }
