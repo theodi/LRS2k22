@@ -85,20 +85,23 @@
     document.getElementById('updateButton').addEventListener('click', updateAndRefresh);
     $.get('/api/contentObjects/summary', function(contentObjects) {
         for (const contentObject of contentObjects) {
-        var courseTitle = contentObject.courseTitle;
+        var courseTitle = contentObject.courseTitle || "";
+        var pageTitle = contentObject.title || "";
+        // Skip only if both titles are missing
+        if (!courseTitle && !pageTitle) {
+            continue;
+        }
         var row = document.createElement('tr');
         addToRow(row, courseTitle);
-        addToRowLink(row, '/course/' + contentObject._id, contentObject.title);
+        addToRowLink(row, '/course/' + contentObject._id, pageTitle || courseTitle);
         addToRow(row, contentObject.tags);
         addToRow(row, contentObject.totalArticleCount);
         addToRow(row, contentObject.totalBlockCount);
         addToRow(row, contentObject.assessmentCount);
         addToRow(row, contentObject.questionCount);
         addToRow(row, contentObject.wordCount);
-        addToRowHidden(row, removeHTML(contentObject.description));
-        if (contentObject.title) {
-            document.getElementById('courses_table_body').append(row);
-        }
+        addToRowHidden(row, removeHTML(contentObject.description || ""));
+        document.getElementById('courses_table_body').append(row);
         }
         $('#courses_table').DataTable({
         dom: 'Bfrtip',

@@ -257,17 +257,22 @@ async function buildCache(dbConnect) {
 	  const contentObjectsData = await Promise.all(contentObjects.map(async (contentObject) => {
 		// Step 2: Get courseData
 		const courseData = await getObjectById(dbConnect, "course", contentObject._courseId);
+		if (!courseData) {
+		  console.warn("Skipping contentobject with missing course:", contentObject._id, contentObject._courseId);
+		  return null;
+		}
 
 		// Step 3: Build contentData
 		const contentData = await buildContentData(dbConnect, contentObject._id);
 
 		// Step 4: Collate data
+		// Adapt often leaves displayTitle blank; fall back to title (authoring name)
 		const tagTitles = (courseData.tags || []).map(tag => tag.title).join(', ');
 		const collatedContentObject = {
 		  _id: contentObject._id,
 		  _courseId: contentObject._courseId,
-		  courseTitle: courseData.displayTitle,
-		  title: contentObject.displayTitle,
+		  courseTitle: courseData.displayTitle || courseData.title || "",
+		  title: contentObject.displayTitle || contentObject.title || "",
 		  tags: tagTitles,
 		  totalArticleCount: contentData.totalArticleCount,
 		  totalBlockCount: contentData.totalBlockCount,
@@ -280,7 +285,7 @@ async function buildCache(dbConnect) {
 		return collatedContentObject;
 	  }));
 
-	  return contentObjectsData;
+	  return contentObjectsData.filter(Boolean);
 	} catch (err) {
 	  throw err;
 	}
